@@ -14,9 +14,13 @@ volumes:
   langfuse_clickhouse_data:
   langfuse_clickhouse_logs:
   langfuse_minio_data:
+  whisper_models:
 
 x-n8n: &service-n8n
-  image: n8nio/n8n:latest
+  build:
+    context: ./n8n-ffmpeg
+    dockerfile: Dockerfile
+  image: n8n-ffmpeg:latest
   environment:
     - DB_TYPE=postgresdb
     - DB_POSTGRESDB_HOST=db
@@ -51,10 +55,10 @@ x-init-ollama: &init-ollama
   entrypoint: /bin/sh
   command:
     - "-c"
-    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull qwen2.5:7b-instruct-q4_K_M; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
-    # For a larger context length verison of the model, run these commands:
-    # echo "FROM qwen2.5:7b-instruct-q4_K_M\n\nPARAMETER num_ctx 8096" > Modelfile
-    # ollama create qwen2.5:7b-8k -f ./Modelfile
+    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull llama3; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
+    # For a larger context length version of the model, run these commands:
+    # echo "FROM llama3\n\nPARAMETER num_ctx 8096" > Modelfile
+    # ollama create llama3-8k -f ./Modelfile
     # Change the name of the LLM and num_ctx as you see fit.
 
 services:
@@ -141,6 +145,12 @@ services:
     ports:
       - 80:80/tcp
       - 443:443/tcp
+      - 8001:8001/tcp
+      - 8002:8002/tcp
+      - 8003:8003/tcp
+      - 8005:8005/tcp
+      - 8007:8007/tcp
+      - 8008:8008/tcp
     expose:
       - 2019/tcp
       - 443/tcp
@@ -359,6 +369,26 @@ services:
         max-size: "1m"
         max-file: "1"      
 
+  # ============================================================
+  # Whisper Service (Speech-to-Text)
+  # ============================================================
+  whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: whisper
+    restart: unless-stopped
+    expose:
+      - 8000/tcp
+    volumes:
+      - whisper_models:/root/.cache/huggingface
+    environment:
+      - WHISPER__MODEL=base
+      - WHISPER__INFERENCE_DEVICE=cpu
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   ollama-cpu:
     profiles: ["cpu"]
     <<: *service-ollama
@@ -400,3 +430,7 @@ services:
     image: ollama/ollama:rocm
     depends_on:
      - ollama-gpu-amd
+
+networks:
+  default:
+    name: localai_default

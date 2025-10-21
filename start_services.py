@@ -22,6 +22,8 @@ def run_command(cmd, cwd=None):
 
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""
+    supabase_compose_file = os.path.join("supabase", "docker", "docker-compose.yml")
+    
     if not os.path.exists("supabase"):
         print("Cloning the Supabase repository...")
         run_command([
@@ -33,11 +35,26 @@ def clone_supabase_repo():
         run_command(["git", "sparse-checkout", "set", "docker"])
         run_command(["git", "checkout", "master"])
         os.chdir("..")
-    else:
-        print("Supabase repository already exists, updating...")
+    elif not os.path.exists(supabase_compose_file):
+        print("Supabase repository exists but files missing, re-checking out...")
         os.chdir("supabase")
-        run_command(["git", "pull"])
+        run_command(["git", "sparse-checkout", "init", "--cone"])
+        run_command(["git", "sparse-checkout", "set", "docker"])
+        run_command(["git", "checkout", "master"])
         os.chdir("..")
+    else:
+        print("Supabase repository already exists and configured.")
+
+def prepare_shared_directory():
+    """Create shared directory with proper permissions for N8N and other services."""
+    shared_path = "shared"
+    if not os.path.exists(shared_path):
+        print(f"Creating {shared_path} directory...")
+        os.makedirs(shared_path, mode=0o777)
+    else:
+        # Ensure proper permissions even if directory exists
+        print(f"Ensuring proper permissions on {shared_path}...")
+        os.chmod(shared_path, 0o777)
 
 def prepare_supabase_env():
     """Copy .env to .env in supabase/docker."""
@@ -225,6 +242,7 @@ def main():
                       help='Environment to use for Docker Compose (default: private)')
     args = parser.parse_args()
 
+    prepare_shared_directory()
     clone_supabase_repo()
     prepare_supabase_env()
     
