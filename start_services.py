@@ -20,6 +20,35 @@ def run_command(cmd, cwd=None):
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, cwd=cwd, check=True)
 
+def validate_env_file():
+    """Проверка наличия и корректности .env файла."""
+    if not os.path.exists('.env'):
+        print("❌ Файл .env не найден!")
+        print("Запустите сначала: python3 CTAPT.py")
+        return False
+    
+    required_vars = [
+        'POSTGRES_PASSWORD',
+        'CLICKHOUSE_PASSWORD', 
+        'MINIO_ROOT_PASSWORD',
+        'N8N_ENCRYPTION_KEY',
+        'JWT_SECRET'
+    ]
+    
+    missing_vars = []
+    with open('.env', 'r') as f:
+        env_content = f.read()
+        for var in required_vars:
+            if f'{var}=' not in env_content:
+                missing_vars.append(var)
+    
+    if missing_vars:
+        print(f"❌ В .env отсутствуют переменные: {', '.join(missing_vars)}")
+        return False
+    
+    print("✅ Файл .env валиден")
+    return True
+
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""
     supabase_compose_file = os.path.join("supabase", "docker", "docker-compose.yml")
@@ -92,7 +121,31 @@ def start_local_ai(profile=None, environment=None):
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.yml"])
     cmd.extend(["up", "-d"])
-    run_command(cmd)
+    
+    try:
+        run_command(cmd)
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Ошибка запуска LocalAI стека")
+        print(f"Проверяем логи проблемных контейнеров...")
+        
+        # Проверка статуса postgres
+        check_cmd = ["docker", "ps", "-a", "--filter", "name=localai-postgres", "--format", "{{.Names}}: {{.Status}}"]
+        try:
+            result = subprocess.run(check_cmd, capture_output=True, text=True)
+            print(f"\nСтатус PostgreSQL:")
+            print(result.stdout)
+            
+            # Показать последние логи
+            logs_cmd = ["docker", "logs", "--tail", "50", "localai-postgres-1"]
+            result = subprocess.run(logs_cmd, capture_output=True, text=True)
+            print(f"\nПоследние 50 строк логов PostgreSQL:")
+            print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
+        except:
+            pass
+        
+        raise e
 
 def generate_searxng_secret_key():
     """Generate a secret key for SearXNG based on the current platform."""
@@ -234,6 +287,32 @@ def check_and_fix_docker_compose_for_searxng():
     except Exception as e:
         print(f"Error checking/modifying docker-compose.yml for SearXNG: {e}")
 
+def wait_for_postgres_healthy(timeout=120):
+    """Ожидание готовности PostgreSQL контейнера."""
+    print(f"Ожидание готовности PostgreSQL (до {timeout} сек)...")
+    
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Health.Status}}", "localai-postgres-1"],
+                capture_output=True, text=True, check=False
+            )
+            status = result.stdout.strip()
+            
+            if status == "healthy":
+                print(f"✅ PostgreSQL готов к работе")
+                return True
+            
+            print(f"   PostgreSQL статус: {status}, ожидание...")
+            time.sleep(5)
+        except Exception as e:
+            print(f"   Проверка статуса: {e}")
+            time.sleep(5)
+    
+    print(f"❌ PostgreSQL не стал healthy за {timeout} секунд")
+    return False
+
 def main():
     parser = argparse.ArgumentParser(description='Start the local AI and Supabase services.')
     parser.add_argument('--profile', choices=['cpu', 'gpu-nvidia', 'gpu-amd', 'none'], default='cpu',
@@ -241,6 +320,10 @@ def main():
     parser.add_argument('--environment', choices=['private', 'public'], default='private',
                       help='Environment to use for Docker Compose (default: private)')
     args = parser.parse_args()
+
+    # Validate .env file before starting
+    if not validate_env_file():
+        sys.exit(1)
 
     prepare_shared_directory()
     clone_supabase_repo()
@@ -257,10 +340,15 @@ def main():
     
     # Give Supabase some time to initialize
     print("Waiting for Supabase to initialize...")
-    time.sleep(10)
+    time.sleep(30)
     
     # Then start the local AI services
     start_local_ai(args.profile, args.environment)
+    
+    # Ожидание критичных сервисов
+    if not wait_for_postgres_healthy():
+        print(f"\n❌ Установка прервана: PostgreSQL не запустился")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

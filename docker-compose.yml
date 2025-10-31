@@ -306,10 +306,11 @@ services:
     image: postgres:${POSTGRES_VERSION:-latest}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
     expose:
       - 5432/tcp
     environment:

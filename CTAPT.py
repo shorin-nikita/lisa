@@ -226,7 +226,7 @@ def generate_all_secrets():
         'postgres_password': generate_password(32).replace('@', ''),  # Без @
         'dashboard_password': generate_password(24),
         'neo4j_password': generate_password(16),
-        'clickhouse_password': generate_password(24),
+        'clickhouse_password': generate_password(24).replace('$', '').replace('@', ''),  # Без $ и @
         'minio_password': generate_password(24),
         'langfuse_salt': generate_secret_key(32),
         'nextauth_secret': generate_secret_key(32),
@@ -317,6 +317,7 @@ LETSENCRYPT_EMAIL={user_inputs['email']}
 ############
 # Database - PostgreSQL Configuration
 ############
+POSTGRES_VERSION=16
 POSTGRES_HOST=db
 POSTGRES_DB=postgres
 POSTGRES_PORT=5432

@@ -3,6 +3,7 @@ volumes/
 shared/
 neo4j/
 shared-backup/
+supabase/
 .env.test
 searxng/settings.yml
 searxng/uwsgi*
