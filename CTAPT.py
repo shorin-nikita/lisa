@@ -216,17 +216,18 @@ def generate_secret_key(length=32):
     return secrets.token_hex(length)
 
 def generate_password(length=24):
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!#$%^&*"
+    # Исключаем символы, которые могут вызвать проблемы в URL и конфигах
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!^&*"
     return ''.join(secrets.choice(chars) for _ in range(length))
 
 def generate_all_secrets():
     return {
         'n8n_encryption_key': generate_secret_key(32),
         'n8n_jwt_secret': generate_secret_key(32),
-        'postgres_password': generate_password(32).replace('@', ''),  # Без @
+        'postgres_password': generate_password(32),
         'dashboard_password': generate_password(24),
         'neo4j_password': generate_password(16),
-        'clickhouse_password': generate_password(24).replace('$', '').replace('@', ''),  # Без $ и @
+        'clickhouse_password': generate_password(24),
         'minio_password': generate_password(24),
         'langfuse_salt': generate_secret_key(32),
         'nextauth_secret': generate_secret_key(32),
