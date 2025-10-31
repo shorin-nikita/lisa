@@ -97,21 +97,49 @@ def detect_gpu_type():
 
 def setup_firewall():
     print(f"\n{Colors.OKBLUE}🔒 Настройка firewall...{Colors.ENDC}")
-    commands = [
-        "sudo ufw --force enable",
-        "sudo ufw allow 80/tcp",
-        "sudo ufw allow 443/tcp",
-        "sudo ufw allow ssh",
-        "sudo ufw --force reload"
+    
+    # КРИТИЧЕСКИ ВАЖНО: Сначала добавляем правила ДО включения firewall
+    # Это предотвращает блокировку SSH порта на удаленных серверах
+    print(f"{Colors.OKBLUE}   Добавление правил firewall...{Colors.ENDC}")
+    
+    # Порядок ВАЖЕН: SSH добавляем ПЕРВЫМ для надежности
+    rules = [
+        ("sudo ufw allow 22/tcp", "SSH"),      # КРИТИЧНО ДЛЯ УДАЛЕННОГО ДОСТУПА
+        ("sudo ufw allow 80/tcp", "HTTP"),
+        ("sudo ufw allow 443/tcp", "HTTPS"),
     ]
     
-    for cmd in commands:
-        if not run_command(cmd, check=False, log_cmd=False):
-            print(f"{Colors.WARNING}⚠️  Firewall не настроен (нужны sudo права){Colors.ENDC}")
-            print(f"   Это не критично для локальной установки")
-            return False
+    # Проверяем, что SSH правило точно добавилось
+    ssh_allowed = False
+    for rule_cmd, rule_name in rules:
+        result = run_command(rule_cmd, check=False, log_cmd=True)
+        if "22" in rule_cmd:
+            ssh_allowed = result
+            if not ssh_allowed:
+                print(f"{Colors.FAIL}❌ КРИТИЧЕСКАЯ ОШИБКА: Не удалось добавить правило для SSH!{Colors.ENDC}")
+                print(f"{Colors.WARNING}⚠️  Firewall НЕ будет включен, чтобы не потерять SSH доступ{Colors.ENDC}")
+                return False
+            else:
+                print(f"{Colors.OKGREEN}   ✅ SSH порт 22 разрешен{Colors.ENDC}")
     
-    print(f"{Colors.OKGREEN}✅ Firewall настроен (порты 80, 443 открыты){Colors.ENDC}")
+    # Только после успешного добавления всех правил включаем firewall
+    print(f"{Colors.OKBLUE}   Включение firewall...{Colors.ENDC}")
+    
+    if not run_command("sudo ufw --force enable", check=False, log_cmd=True):
+        print(f"{Colors.WARNING}⚠️  Firewall не включен (нужны sudo права){Colors.ENDC}")
+        print(f"   Это не критично для локальной установки")
+        return False
+    
+    # Перезагружаем firewall
+    run_command("sudo ufw --force reload", check=False, log_cmd=False)
+    
+    # Проверяем статус
+    status_result = run_command("sudo ufw status", check=False, log_cmd=False)
+    if status_result:
+        print(f"{Colors.OKGREEN}✅ Firewall настроен (порты 80, 443, 22 открыты){Colors.ENDC}")
+    else:
+        print(f"{Colors.WARNING}⚠️  Firewall настроен, но проверка статуса недоступна{Colors.ENDC}")
+    
     return True
 
 def validate_domain(domain):
