@@ -88,6 +88,14 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - open-webui:/app/backend/data
+    deploy:
+      resources:
+        limits:
+          cpus: '${WEBUI_CPU_LIMIT:-1}'
+          memory: ${WEBUI_MEM_LIMIT:-2G}
+        reservations:
+          cpus: '${WEBUI_CPU_RESERVE:-0.5}'
+          memory: ${WEBUI_MEM_RESERVE:-1G}
 
   n8n-import:
     <<: *service-n8n
@@ -112,6 +120,14 @@ services:
     depends_on:
       n8n-import:
         condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: '${N8N_CPU_LIMIT:-2}'
+          memory: ${N8N_MEM_LIMIT:-4G}
+        reservations:
+          cpus: '${N8N_CPU_RESERVE:-1}'
+          memory: ${N8N_MEM_RESERVE:-2G}
 
   qdrant:
     image: qdrant/qdrant
@@ -122,6 +138,14 @@ services:
       - 6334/tcp
     volumes:
       - qdrant_storage:/qdrant/storage
+    deploy:
+      resources:
+        limits:
+          cpus: '${QDRANT_CPU_LIMIT:-2}'
+          memory: ${QDRANT_MEM_LIMIT:-2G}
+        reservations:
+          cpus: '${QDRANT_CPU_RESERVE:-0.5}'
+          memory: ${QDRANT_MEM_RESERVE:-1G}
 
   neo4j:
     image: neo4j:latest
@@ -135,7 +159,7 @@ services:
       - 7474/tcp
       - 7687/tcp
     environment:
-        - NEO4J_AUTH=${NEO4J_AUTH:-"neo4j/your_password"}
+        - NEO4J_AUTH=${NEO4J_AUTH}
     restart: always      
 
   caddy:
@@ -148,7 +172,9 @@ services:
       - 8001:8001/tcp
       - 8002:8002/tcp
       - 8003:8003/tcp
+      - 8004:8004/tcp
       - 8005:8005/tcp
+      - 8006:8006/tcp
       - 8007:8007/tcp
       - 8008:8008/tcp
     expose:
@@ -318,7 +344,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: postgres
     volumes:
-      - langfuse_postgres_data:/var/lib/postgresql/data              
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '${POSTGRES_CPU_LIMIT:-2}'
+          memory: ${POSTGRES_MEM_LIMIT:-4G}
+        reservations:
+          cpus: '${POSTGRES_CPU_RESERVE:-1}'
+          memory: ${POSTGRES_MEM_RESERVE:-2G}              
 
   redis:
     container_name: redis
@@ -378,14 +412,16 @@ services:
     container_name: whisper
     restart: unless-stopped
     expose:
-      - 8000/tcp
+      - 8090/tcp
     volumes:
       - whisper_models:/root/.cache/huggingface
     environment:
       - WHISPER__MODEL=base
       - WHISPER__INFERENCE_DEVICE=cpu
+      - WHISPER__HOST=0.0.0.0
+      - WHISPER__PORT=8090
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -393,13 +429,26 @@ services:
   ollama-cpu:
     profiles: ["cpu"]
     <<: *service-ollama
+    deploy:
+      resources:
+        limits:
+          cpus: '${OLLAMA_CPU_LIMIT:-4}'
+          memory: ${OLLAMA_MEM_LIMIT:-8G}
+        reservations:
+          cpus: '${OLLAMA_CPU_RESERVE:-2}'
+          memory: ${OLLAMA_MEM_RESERVE:-4G}
 
   ollama-gpu:
     profiles: ["gpu-nvidia"]
     <<: *service-ollama
     deploy:
       resources:
+        limits:
+          cpus: '${OLLAMA_CPU_LIMIT:-4}'
+          memory: ${OLLAMA_MEM_LIMIT:-8G}
         reservations:
+          cpus: '${OLLAMA_CPU_RESERVE:-2}'
+          memory: ${OLLAMA_MEM_RESERVE:-4G}
           devices:
             - driver: nvidia
               count: 1
@@ -412,6 +461,14 @@ services:
     devices:
       - "/dev/kfd"
       - "/dev/dri"
+    deploy:
+      resources:
+        limits:
+          cpus: '${OLLAMA_CPU_LIMIT:-4}'
+          memory: ${OLLAMA_MEM_LIMIT:-8G}
+        reservations:
+          cpus: '${OLLAMA_CPU_RESERVE:-2}'
+          memory: ${OLLAMA_MEM_RESERVE:-4G}
 
   ollama-pull-llama-cpu:
     profiles: ["cpu"]

@@ -251,6 +251,39 @@ def generate_password(length=24):
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return ''.join(secrets.choice(chars) for _ in range(length))
 
+def get_server_ip():
+    """Определяет IP-адрес сервера автоматически."""
+    try:
+        # Попытка 1: Внешний IP через ifconfig.me
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "3", "https://ifconfig.me"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            ip = result.stdout.strip()
+            # Проверка что это похоже на IP
+            if ip.replace('.', '').isdigit() and ip.count('.') == 3:
+                print(f"{Colors.OKGREEN}   Определен внешний IP: {ip}{Colors.ENDC}")
+                return ip
+    except:
+        pass
+    
+    try:
+        # Попытка 2: Локальный IP через socket
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        print(f"{Colors.OKGREEN}   Определен локальный IP: {ip}{Colors.ENDC}")
+        return ip
+    except:
+        pass
+    
+    # Fallback: localhost
+    print(f"{Colors.WARNING}   Не удалось определить IP, используется localhost{Colors.ENDC}")
+    return "localhost"
+
 def generate_all_secrets():
     return {
         'n8n_encryption_key': generate_secret_key(32),
@@ -515,7 +548,7 @@ def main():
     print(f"  ✅ N8N + FFmpeg - автоматизация и медиа")
     print(f"  ✅ Supabase - база данных")
     print(f"  ✅ Ollama - LLM (модель llama3)")
-    print(f"  ✅ Whisper - распознавание речи (порт 8000)")
+    print(f"  ✅ Whisper - распознавание речи (внутри Docker)")
     print(f"  ✅ Open WebUI - интерфейс")
     print(f"  ✅ Flowise - визуальные агенты")
     print(f"  ✅ Langfuse - мониторинг")
@@ -538,26 +571,56 @@ def main():
         print(f"\n{Colors.OKGREEN}{Colors.BOLD}{'='*65}")
         print(f"  🎉 Установка успешно завершена!")
         print(f"{'='*65}{Colors.ENDC}")
+        
+        # Определяем IP-адрес сервера
+        print(f"\n{Colors.OKBLUE}🔍 Определение IP-адреса...{Colors.ENDC}")
+        server_ip = get_server_ip()
+        
         print(f"\n{Colors.OKCYAN}📋 Доступ к сервисам:{Colors.ENDC}")
         
-        # Читаем N8N_HOSTNAME из .env для корректного отображения
-        n8n_url = "http://localhost:8001"
+        # Читаем домены из .env для корректного отображения
+        n8n_domain = None
+        supabase_domain = None
+        webui_domain = None
+        
         try:
             with open('.env', 'r') as f:
                 for line in f:
                     if line.startswith('N8N_HOSTNAME='):
                         domain = line.split('=')[1].strip()
-                        if domain and domain != ':8001':
-                            n8n_url = f"http://localhost:8001 или https://{domain}"
-                        break
+                        if domain and not domain.startswith(':'):
+                            n8n_domain = domain
+                    elif line.startswith('SUPABASE_HOSTNAME='):
+                        domain = line.split('=')[1].strip()
+                        if domain and not domain.startswith(':'):
+                            supabase_domain = domain
+                    elif line.startswith('WEBUI_HOSTNAME='):
+                        domain = line.split('=')[1].strip()
+                        if domain and not domain.startswith(':'):
+                            webui_domain = domain
         except:
             pass
         
+        # Формируем URLs с IP и доменами
+        if n8n_domain:
+            n8n_url = f"http://{server_ip}:8001 или https://{n8n_domain}"
+        else:
+            n8n_url = f"http://{server_ip}:8001"
+        
+        if webui_domain:
+            webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
+        else:
+            webui_url = f"http://{server_ip}:8002"
+        
+        if supabase_domain:
+            supabase_url = f"http://{server_ip}:8005 или https://{supabase_domain}"
+        else:
+            supabase_url = f"http://{server_ip}:8005"
+        
         print(f"  • N8N: {n8n_url}")
-        print(f"  • Open WebUI: http://localhost:8002")
-        print(f"  • Supabase: http://localhost:8005")
-        print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и Open WebUI{Colors.ENDC}")
-        print(f"{Colors.WARNING}💡 Whisper API: http://whisper:8000 (внутри Docker сети){Colors.ENDC}\n")
+        print(f"  • Open WebUI: {webui_url}")
+        print(f"  • Supabase: {supabase_url}")
+        print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и активируйте план Community Edition{Colors.ENDC}\n")
         
     except Exception as e:
         print(f"\n{Colors.FAIL}❌ Ошибка запуска установки: {e}{Colors.ENDC}")

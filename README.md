@@ -95,13 +95,13 @@ python3 CTAPT.py
 
 ### В N8N workflows
 
-Whisper доступен по адресу `http://whisper:8000` внутри Docker сети.
+Whisper доступен по адресу `http://whisper:8090` внутри Docker сети.
 
 #### HTTP Request нода:
 
 ```
 Method: POST
-URL: http://whisper:8000/v1/audio/transcriptions
+URL: http://whisper:8090/v1/audio/transcriptions
 
 Body (multipart/form-data):
 ├─ file: [бинарный файл аудио]
@@ -111,7 +111,7 @@ Body (multipart/form-data):
 #### Пример curl:
 
 ```bash
-curl -X POST http://whisper:8000/v1/audio/transcriptions \
+curl -X POST http://whisper:8090/v1/audio/transcriptions \
   -F "file=@audio.mp3" \
   -F "model=base"
 ```
@@ -256,15 +256,16 @@ python3 start_services.py
 ┌─────────────────────────────────────────────────────────────┐
 │                    localai_default network                  │
 │                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │   N8N    │  │  Whisper │  │ Supabase │  │  Ollama  │  │
-│  │ +FFmpeg  │  │  :8000   │  │  :8000   │  │ :11434   │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │   N8N    │  │  Whisper │  │ Supabase │  │  Ollama  │   │
+│  │ +FFmpeg  │  │  :8090   │  │  :8000   │  │ :11434   │   │
+│  │  :5678   │  │          │  │  (Kong)  │  │          │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 │                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ OpenWebUI│  │ Flowise  │  │  Qdrant  │  │  Neo4j   │  │
-│  │  :8080   │  │  :3001   │  │  :6333   │  │  :7474   │  │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│  │ OpenWebUI│  │ Flowise  │  │  Qdrant  │  │  Neo4j   │   │
+│  │  :8080   │  │  :3001   │  │  :6333   │  │  :7474   │   │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
