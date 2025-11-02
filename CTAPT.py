@@ -247,8 +247,8 @@ def generate_secret_key(length=32):
     return secrets.token_hex(length)
 
 def generate_password(length=24):
-    # Исключаем символы, которые могут вызвать проблемы в URL и конфигах
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!^&*"
+    # Только буквенно-цифровые символы для совместимости с URL и конфигами
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return ''.join(secrets.choice(chars) for _ in range(length))
 
 def generate_all_secrets():
