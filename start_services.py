@@ -20,20 +20,43 @@ def run_command(cmd, cwd=None):
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, cwd=cwd, check=True)
 
-def validate_env_file():
+def get_installation_mode_from_env():
+    """Определение режима установки из .env файла."""
+    if not os.path.exists('.env'):
+        return 'max'  # Fallback для обратной совместимости
+    
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.startswith('INSTALLATION_MODE='):
+                    mode = line.split('=')[1].strip()
+                    if mode in ['mini', 'max']:
+                        return mode
+    except Exception:
+        pass
+    
+    return 'max'  # Fallback по умолчанию
+
+def validate_env_file(mode='max'):
     """Проверка наличия и корректности .env файла."""
     if not os.path.exists('.env'):
         print("❌ Файл .env не найден!")
         print("Запустите сначала: python3 CTAPT.py")
         return False
     
+    # Базовые переменные (обязательны всегда)
     required_vars = [
         'POSTGRES_PASSWORD',
-        'CLICKHOUSE_PASSWORD', 
-        'MINIO_ROOT_PASSWORD',
         'N8N_ENCRYPTION_KEY',
         'JWT_SECRET'
     ]
+    
+    # Дополнительные переменные только для MAX режима
+    if mode == 'max':
+        required_vars.extend([
+            'CLICKHOUSE_PASSWORD', 
+            'MINIO_ROOT_PASSWORD'
+        ])
     
     missing_vars = []
     with open('.env', 'r') as f:
@@ -46,7 +69,7 @@ def validate_env_file():
         print(f"❌ В .env отсутствуют переменные: {', '.join(missing_vars)}")
         return False
     
-    print("✅ Файл .env валиден")
+    print(f"✅ Файл .env валиден (режим: {mode.upper()})")
     return True
 
 def clone_supabase_repo():
@@ -109,9 +132,59 @@ def start_supabase(environment=None):
     cmd.extend(["up", "-d"])
     run_command(cmd)
 
+def start_local_ai_mini(profile=None, environment=None):
+    """Start minimal AI services for MINI mode."""
+    print("🚀 Запуск системы в режиме MINI...")
+    print("\n📦 Будут запущены сервисы:")
+    print("  • N8N (с FFmpeg)")
+    print("  • Supabase (полный стек)")
+    print("  • Caddy")
+    print("  • Redis")
+    print("  • Qdrant")
+    print("  • Whisper")
+    print("  • PostgreSQL (для Langfuse/N8N)\n")
+    
+    # Список минимальных сервисов
+    services = ["n8n-import", "n8n", "caddy", "redis", "qdrant", "whisper", "postgres"]
+    
+    cmd = ["docker", "compose", "-p", "localai"]
+    if profile and profile != "none":
+        cmd.extend(["--profile", profile])
+    cmd.extend(["-f", "docker-compose.yml"])
+    if environment and environment == "public":
+        cmd.extend(["-f", "docker-compose.override.public.yml"])
+    cmd.extend(["up", "-d"] + services)
+    
+    try:
+        run_command(cmd)
+    except subprocess.CalledProcessError as e:
+        print(f"\n❌ Ошибка запуска MINI стека")
+        print(f"Проверяем логи проблемных контейнеров...")
+        
+        # Проверка статуса postgres
+        check_cmd = ["docker", "ps", "-a", "--filter", "name=localai-postgres", "--format", "{{.Names}}: {{.Status}}"]
+        try:
+            result = subprocess.run(check_cmd, capture_output=True, text=True)
+            print(f"\nСтатус PostgreSQL:")
+            print(result.stdout)
+            
+            # Показать последние логи
+            logs_cmd = ["docker", "logs", "--tail", "50", "localai-postgres-1"]
+            result = subprocess.run(logs_cmd, capture_output=True, text=True)
+            print(f"\nПоследние 50 строк логов PostgreSQL:")
+            print(result.stdout)
+            if result.stderr:
+                print(result.stderr)
+        except:
+            pass
+        
+        raise e
+
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
-    print("Starting local AI services...")
+    print("🚀 Запуск системы в режиме MAX...")
+    print("\n📦 Будут запущены ВСЕ сервисы (может занять время)...\n")
+    
     cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         cmd.extend(["--profile", profile])
@@ -147,8 +220,12 @@ def start_local_ai(profile=None, environment=None):
         
         raise e
 
-def generate_searxng_secret_key():
+def generate_searxng_secret_key(mode='max'):
     """Generate a secret key for SearXNG based on the current platform."""
+    if mode == 'mini':
+        print("Skipping SearXNG configuration (MINI mode)...")
+        return
+    
     print("Checking SearXNG settings...")
     
     # Define paths for SearXNG settings files
@@ -219,8 +296,11 @@ def generate_searxng_secret_key():
         print("    $secretKey = -join ($randomBytes | ForEach-Object { \"{0:x2}\" -f $_ })")
         print("    (Get-Content searxng/settings.yml) -replace 'ultrasecretkey', $secretKey | Set-Content searxng/settings.yml")
 
-def check_and_fix_docker_compose_for_searxng():
+def check_and_fix_docker_compose_for_searxng(mode='max'):
     """Check and modify docker-compose.yml for SearXNG first run."""
+    if mode == 'mini':
+        return  # Skip in MINI mode
+    
     docker_compose_path = "docker-compose.yml"
     if not os.path.exists(docker_compose_path):
         print(f"Warning: Docker Compose file not found at {docker_compose_path}")
@@ -319,19 +399,32 @@ def main():
                       help='Profile to use for Docker Compose (default: cpu)')
     parser.add_argument('--environment', choices=['private', 'public'], default='private',
                       help='Environment to use for Docker Compose (default: private)')
+    parser.add_argument('--mode', choices=['mini', 'max'], default='max',
+                      help='Installation mode: mini (minimal services) or max (all services) (default: max)')
     args = parser.parse_args()
 
+    # Определяем режим: приоритет аргументу командной строки, затем из .env
+    mode = args.mode
+    env_mode = get_installation_mode_from_env()
+    
+    # Если режим из .env отличается от аргумента, предупреждаем
+    if env_mode != mode:
+        print(f"\n⚠️  Обнаружена разница в режимах:")
+        print(f"   .env файл: {env_mode.upper()}")
+        print(f"   Аргумент командной строки: {mode.upper()}")
+        print(f"   Используется: {mode.upper()}\n")
+
     # Validate .env file before starting
-    if not validate_env_file():
+    if not validate_env_file(mode):
         sys.exit(1)
 
     prepare_shared_directory()
     clone_supabase_repo()
     prepare_supabase_env()
     
-    # Generate SearXNG secret key and check docker-compose.yml
-    generate_searxng_secret_key()
-    check_and_fix_docker_compose_for_searxng()
+    # Generate SearXNG secret key and check docker-compose.yml (только для MAX)
+    generate_searxng_secret_key(mode)
+    check_and_fix_docker_compose_for_searxng(mode)
     
     stop_existing_containers(args.profile)
     
@@ -342,8 +435,11 @@ def main():
     print("Waiting for Supabase to initialize...")
     time.sleep(30)
     
-    # Then start the local AI services
-    start_local_ai(args.profile, args.environment)
+    # Then start the local AI services (выбор между mini и max)
+    if mode == 'mini':
+        start_local_ai_mini(args.profile, args.environment)
+    else:
+        start_local_ai(args.profile, args.environment)
     
     # Ожидание критичных сервисов
     if not wait_for_postgres_healthy():

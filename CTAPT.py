@@ -204,6 +204,31 @@ def collect_user_inputs():
     inputs['email'] = get_validated_input(
         "Email для Let's Encrypt: ", validate_email, "Некорректный email")
     
+    # Выбор режима установки
+    print(f"\n{Colors.OKCYAN}{Colors.BOLD}⚙️  РЕЖИМ УСТАНОВКИ:{Colors.ENDC}")
+    print(f"\n{Colors.OKBLUE}Выберите режим установки системы:{Colors.ENDC}")
+    print(f"\n  {Colors.BOLD}1. MINI{Colors.ENDC} — Минимальная конфигурация")
+    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Требования: 2 CPU, 4GB RAM, 10GB диск")
+    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Сервисы: N8N, Supabase, Caddy, Redis, Qdrant, Whisper")
+    print(f"     {Colors.OKCYAN}└─{Colors.ENDC} Подходит для: слабых серверов, тестирования")
+    print(f"\n  {Colors.BOLD}2. MAX{Colors.ENDC} — Полная конфигурация")
+    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Требования: 4+ CPU, 16GB+ RAM, 30GB диск")
+    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Сервисы: все из MINI + Ollama, WebUI, Flowise, Langfuse, Neo4j, SearXNG")
+    print(f"     {Colors.OKCYAN}└─{Colors.ENDC} Подходит для: мощных серверов, продакшена")
+    
+    while True:
+        choice = input(f"\n{Colors.BOLD}Выберите режим (1/2): {Colors.ENDC}").strip()
+        if choice == '1':
+            inputs['installation_mode'] = 'mini'
+            print(f"{Colors.OKGREEN}✅ Выбран режим: MINI{Colors.ENDC}")
+            break
+        elif choice == '2':
+            inputs['installation_mode'] = 'max'
+            print(f"{Colors.OKGREEN}✅ Выбран режим: MAX{Colors.ENDC}")
+            break
+        else:
+            print(f"{Colors.FAIL}❌ Введите 1 или 2{Colors.ENDC}")
+    
     print(f"\n{Colors.OKBLUE}🌐 Домен N8N (обязательно):{Colors.ENDC}")
     inputs['n8n_domain'] = get_validated_input(
         "Домен N8N (пример: n8n.site.ru): ", validate_domain, "Некорректный домен")
@@ -212,27 +237,36 @@ def collect_user_inputs():
     inputs['supabase_domain'] = get_validated_input(
         "Домен Supabase (пример: db.site.ru): ", validate_domain, "Некорректный домен")
     
-    print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
-    
-    inputs['ollama_domain'] = get_validated_input(
-        "Домен Ollama (пример: ollama.site.ru) или '-': ", 
-        validate_domain, "Некорректный домен", allow_skip=True)
-    
-    inputs['webui_domain'] = get_validated_input(
-        "Домен WebUI (пример: ai.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
-    
-    inputs['flowise_domain'] = get_validated_input(
-        "Домен Flowise (пример: agents.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
-    
-    inputs['langfuse_domain'] = get_validated_input(
-        "Домен Langfuse (пример: analytics.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
-    
-    inputs['neo4j_domain'] = get_validated_input(
-        "Домен Neo4j (пример: graph.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
+    # Опциональные домены - только для MAX режима
+    if inputs['installation_mode'] == 'max':
+        print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
+        
+        inputs['ollama_domain'] = get_validated_input(
+            "Домен Ollama (пример: ollama.site.ru) или '-': ", 
+            validate_domain, "Некорректный домен", allow_skip=True)
+        
+        inputs['webui_domain'] = get_validated_input(
+            "Домен WebUI (пример: ai.site.ru) или '-': ",
+            validate_domain, "Некорректный домен", allow_skip=True)
+        
+        inputs['flowise_domain'] = get_validated_input(
+            "Домен Flowise (пример: agents.site.ru) или '-': ",
+            validate_domain, "Некорректный домен", allow_skip=True)
+        
+        inputs['langfuse_domain'] = get_validated_input(
+            "Домен Langfuse (пример: analytics.site.ru) или '-': ",
+            validate_domain, "Некорректный домен", allow_skip=True)
+        
+        inputs['neo4j_domain'] = get_validated_input(
+            "Домен Neo4j (пример: graph.site.ru) или '-': ",
+            validate_domain, "Некорректный домен", allow_skip=True)
+    else:
+        # В MINI режиме эти домены не используются
+        inputs['ollama_domain'] = None
+        inputs['webui_domain'] = None
+        inputs['flowise_domain'] = None
+        inputs['langfuse_domain'] = None
+        inputs['neo4j_domain'] = None
     
     print(f"\n{Colors.OKBLUE}🔐 Ключи Supabase:{Colors.ENDC}")
     print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys{Colors.ENDC}")
@@ -313,6 +347,11 @@ def create_env_file(user_inputs, generated_secrets):
         return False
 
     env_content = f"""############
+# Installation Mode
+############
+INSTALLATION_MODE={user_inputs['installation_mode']}
+
+############
 # N8N Configuration
 ############
 N8N_ENCRYPTION_KEY={generated_secrets['n8n_encryption_key']}
@@ -541,23 +580,50 @@ def main():
     input(f"\n{Colors.BOLD}Нажмите Enter для запуска установки...{Colors.ENDC}")
 
     # Шаг 6: Запуск установки
+    # Определяем режим установки для правильного вывода
+    if not env_exists:
+        installation_mode = user_inputs.get('installation_mode', 'max')
+    else:
+        installation_mode = None
+    
+    # Если используется существующий .env, определяем режим из него
+    if env_exists or installation_mode is None:
+        try:
+            with open('.env', 'r') as f:
+                for line in f:
+                    if line.startswith('INSTALLATION_MODE='):
+                        installation_mode = line.split('=')[1].strip()
+                        break
+            if installation_mode is None:
+                installation_mode = 'max'  # Fallback для старых .env
+        except:
+            installation_mode = 'max'
+    
     print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*65}")
-    print(f"  🚀 Запуск установки Л.И.С.А.")
+    print(f"  🚀 Запуск установки Л.И.С.А. (Режим: {installation_mode.upper()})")
     print(f"{'='*65}{Colors.ENDC}")
     print(f"\n{Colors.OKCYAN}📦 Что будет установлено:{Colors.ENDC}")
+    
+    # Базовые сервисы (всегда устанавливаются)
     print(f"  ✅ N8N + FFmpeg - автоматизация и медиа")
     print(f"  ✅ Supabase - база данных")
-    print(f"  ✅ Ollama - LLM (модель llama3)")
-    print(f"  ✅ Whisper - распознавание речи (внутри Docker)")
-    print(f"  ✅ Open WebUI - интерфейс")
-    print(f"  ✅ Flowise - визуальные агенты")
-    print(f"  ✅ Langfuse - мониторинг")
+    print(f"  ✅ Caddy - SSL/TLS")
+    print(f"  ✅ Redis - кеш")
     print(f"  ✅ Qdrant - векторная БД")
-    print(f"  ✅ Neo4j - граф БД")
-    print(f"  ✅ SearXNG - поиск")
-    print(f"  ✅ Caddy - SSL/TLS\n")
+    print(f"  ✅ Whisper - распознавание речи")
     
-    install_cmd = f"python3 start_services.py --profile {gpu_profile} --environment public"
+    # Дополнительные сервисы (только в MAX режиме)
+    if installation_mode == 'max':
+        print(f"  ✅ Ollama - LLM (модель llama3)")
+        print(f"  ✅ Open WebUI - интерфейс")
+        print(f"  ✅ Flowise - визуальные агенты")
+        print(f"  ✅ Langfuse - мониторинг")
+        print(f"  ✅ Neo4j - граф БД")
+        print(f"  ✅ SearXNG - поиск")
+    
+    print()
+    
+    install_cmd = f"python3 start_services.py --profile {gpu_profile} --environment public --mode {installation_mode}"
     print(f"{Colors.OKBLUE}🚀 Выполняется: {install_cmd}{Colors.ENDC}\n")
     
     try:

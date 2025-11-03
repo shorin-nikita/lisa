@@ -97,6 +97,28 @@ def detect_environment():
     print(f"{Colors.OKGREEN}✅ Локальная установка, окружение: private{Colors.ENDC}")
     return "private"
 
+def detect_installation_mode():
+    """Определение режима установки (mini/max)"""
+    print(f"\n{Colors.OKBLUE}⚙️  Определение режима установки...{Colors.ENDC}")
+    
+    if not os.path.exists('.env'):
+        print(f"{Colors.WARNING}⚠️  Файл .env не найден, используется max{Colors.ENDC}")
+        return "max"
+    
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.startswith('INSTALLATION_MODE='):
+                    mode = line.split('=')[1].strip()
+                    if mode in ['mini', 'max']:
+                        print(f"{Colors.OKGREEN}✅ Режим установки: {mode.upper()}{Colors.ENDC}")
+                        return mode
+    except:
+        pass
+    
+    print(f"{Colors.OKGREEN}✅ Режим установки: MAX (по умолчанию){Colors.ENDC}")
+    return "max"
+
 def get_system_resources():
     """Получение информации о ресурсах системы"""
     print(f"\n{Colors.OKBLUE}💻 Определение ресурсов системы...{Colors.ENDC}")
@@ -204,11 +226,11 @@ def update_containers():
     print(f"{Colors.OKGREEN}✅ Docker образы обновлены{Colors.ENDC}")
     return True
 
-def restart_services(profile, environment):
+def restart_services(profile, environment, mode):
     """Перезапуск сервисов"""
     print(f"\n{Colors.OKBLUE}🚀 Перезапуск сервисов...{Colors.ENDC}")
     
-    cmd = f"python3 start_services.py --profile {profile} --environment {environment}"
+    cmd = f"python3 start_services.py --profile {profile} --environment {environment} --mode {mode}"
     print(f"{Colors.OKCYAN}   Команда: {cmd}{Colors.ENDC}")
     
     if run_command(cmd):
@@ -321,6 +343,7 @@ def main():
     # Шаг 1: Определение конфигурации
     gpu_profile = detect_gpu_type()
     environment = detect_environment()
+    mode = detect_installation_mode()
     cpu_count, mem_gb = get_system_resources()
     
     # Шаг 2: Создание backup
@@ -347,7 +370,7 @@ def main():
         sys.exit(1)
     
     # Шаг 7: Перезапуск сервисов
-    if not restart_services(gpu_profile, environment):
+    if not restart_services(gpu_profile, environment, mode):
         print(f"\n{Colors.FAIL}❌ Не удалось перезапустить сервисы{Colors.ENDC}")
         sys.exit(1)
     
@@ -359,6 +382,7 @@ def main():
     print(f"  🎉 Обновление успешно завершено!")
     print(f"{'='*65}{Colors.ENDC}")
     print(f"\n{Colors.OKCYAN}📋 Система обновлена и запущена{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}   Режим: {mode.upper()}{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Профиль: {gpu_profile}{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Окружение: {environment}{Colors.ENDC}\n")
 
