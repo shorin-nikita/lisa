@@ -644,15 +644,20 @@ def main():
         
         print(f"\n{Colors.OKCYAN}📋 Доступ к сервисам:{Colors.ENDC}")
         
-        # Читаем домены из .env для корректного отображения
+        # Читаем домены и режим из .env для корректного отображения
         n8n_domain = None
         supabase_domain = None
         webui_domain = None
+        installed_mode = 'max'  # По умолчанию
         
         try:
             with open('.env', 'r') as f:
                 for line in f:
-                    if line.startswith('N8N_HOSTNAME='):
+                    if line.startswith('INSTALLATION_MODE='):
+                        mode_value = line.split('=')[1].strip()
+                        if mode_value in ['mini', 'max']:
+                            installed_mode = mode_value
+                    elif line.startswith('N8N_HOSTNAME='):
                         domain = line.split('=')[1].strip()
                         if domain and not domain.startswith(':'):
                             n8n_domain = domain
@@ -673,18 +678,21 @@ def main():
         else:
             n8n_url = f"http://{server_ip}:8001"
         
-        if webui_domain:
-            webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
-        else:
-            webui_url = f"http://{server_ip}:8002"
-        
         if supabase_domain:
             supabase_url = f"http://{server_ip}:8005 или https://{supabase_domain}"
         else:
             supabase_url = f"http://{server_ip}:8005"
         
         print(f"  • N8N: {n8n_url}")
-        print(f"  • Open WebUI: {webui_url}")
+        
+        # Open WebUI только в MAX режиме
+        if installed_mode == 'max':
+            if webui_domain:
+                webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
+            else:
+                webui_url = f"http://{server_ip}:8002"
+            print(f"  • Open WebUI: {webui_url}")
+        
         print(f"  • Supabase: {supabase_url}")
         print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и активируйте план Community Edition{Colors.ENDC}\n")
         
