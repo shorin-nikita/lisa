@@ -213,8 +213,8 @@ def update_containers():
     """Обновление Docker контейнеров"""
     print(f"\n{Colors.OKBLUE}🐳 Обновление Docker образов...{Colors.ENDC}")
     
-    # Pull новых образов
-    if not run_command("docker compose -p localai pull"):
+    # Pull новых образов (игнорируем образы, которые нужно собирать)
+    if not run_command("docker compose -p localai pull --ignore-buildable"):
         print(f"{Colors.FAIL}❌ Не удалось скачать обновления{Colors.ENDC}")
         return False
     
