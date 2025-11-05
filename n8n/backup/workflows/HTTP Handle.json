@@ -1,0 +1,387 @@
+{
+  "name": "HTTP Handle",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "= https://api.telegram.org/bot{{ $json['api_key'] }}/setWebhook?url={{ $json['url_webhook'] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        752
+      ],
+      "id": "da2c4e5b-4159-4df5-a2a5-ff136df0eaa2",
+      "name": "Telegram Привязка"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.wazzup24.com/v3/webhooks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json['api_key'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"webhooksUri\": \"{{ $json['url_webhook'] }}\",\n  \"subscriptions\": {\n    \"messagesAndStatuses\": true,\n    \"contactsAndDealsCreation\": true\n  }\n}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        272
+      ],
+      "id": "55d0d5ea-a79c-417a-8d36-ac2f8e2821ab",
+      "name": "Wazzup Привязка"
+    },
+    {
+      "parameters": {
+        "content": "# HTTP Ручки\n\n***\n\n**Автор:** [Никита Шорин](https://www.youtube.com/@shorin_nikita)\n\n***\n\n## Инструкция по привязке вебхуков\n### • Сделать связь между **СТАРТ** и нодой **SET** с которой будем работать\n### • Вставить API ключ в **api_key** в ноде **SET**\n### • Вставить адрес вебхука в **url_webhook** в ноде **SET**\n### • Запустить **Test workflow**\n### • Проверить результат в **Проверка Вебхука**\n\n***\n\n## Wazzup\nПервые 3 дня бесплатно\nРегистрация с бонусом ₽500 [по ссылке](https://wazzup24.com/?utm_p=qzzBpM)\n\n### Доступные каналы:\n• WhatsApp (серый wazzup - моментально по QR code)\n• WhatsApp WABA (официальная интеграция - после верификации в Meta)\n• Telegram Персональный\n• Telegram Bot\n• Instagram\n• Avito\n• VK\n• Viber\n\n***\n\n## Telegram Bot\nВсегда бесплатный\nРегистрация телеграм бота в [@BotFather](https:///t.me/botfather)\n\n\n***\n\n## [Присоединиться к сообществу по ИИ-автоматизации](https://t.me/PrideAIBot)",
+        "height": 1020,
+        "width": 460
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        192
+      ],
+      "id": "4f24c904-1280-4ed7-8c87-e62f65ba43e7",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f404bab6-5dfb-42a6-991f-c6fd6f05fe15",
+              "name": "api_key",
+              "value": "Заменить на API Wazzup",
+              "type": "string"
+            },
+            {
+              "id": "740e516f-160a-4ab2-82d6-a63382e3b803",
+              "name": "url_webhook",
+              "value": "Заменить на вебхук из основного Workflow",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        240
+      ],
+      "id": "2ad48690-27ad-49e5-8ad2-b963adf02616",
+      "name": "SET Wazzup Личный"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f404bab6-5dfb-42a6-991f-c6fd6f05fe15",
+              "name": "api_key",
+              "value": "Заменить на API Wazzup",
+              "type": "string"
+            },
+            {
+              "id": "740e516f-160a-4ab2-82d6-a63382e3b803",
+              "name": "url_webhook",
+              "value": "Заменить на вебхук из основного Workflow",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        544
+      ],
+      "id": "810e0f3a-08b2-4aaa-a4e0-4ea32d4239bd",
+      "name": "SET Wazzup Клиента"
+    },
+    {
+      "parameters": {
+        "url": "https://api.wazzup24.com/v3/webhooks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json['api_key'] }}"
+            }
+          ]
+        },
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        480
+      ],
+      "id": "823acb4b-a6dc-42ba-9502-a855e0ee386e",
+      "name": "Wazzup Проверка Вебхука"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "= https://api.telegram.org/bot{{ $json['api_key'] }}/getWebhookInfo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        896
+      ],
+      "id": "4f8b3f90-94a7-4c5d-a1db-0432b6ff7685",
+      "name": "Telegram Проверка Вебхука"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        624
+      ],
+      "id": "cf498b1b-e111-4f72-934e-e0b54f424b51",
+      "name": "СТАРТ"
+    },
+    {
+      "parameters": {
+        "content": "## Wazzup\n",
+        "height": 500,
+        "width": 820,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        192
+      ],
+      "id": "ab913c51-9f80-4861-a9b7-37c514481b14",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Telegram Bot",
+        "height": 500,
+        "width": 820,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        720
+      ],
+      "id": "e5254a17-f01b-4675-aa70-1184ad519970",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f404bab6-5dfb-42a6-991f-c6fd6f05fe15",
+              "name": "api_key",
+              "value": "Заменить на API key Telegram bot | из @BotFather",
+              "type": "string"
+            },
+            {
+              "id": "740e516f-160a-4ab2-82d6-a63382e3b803",
+              "name": "url_webhook",
+              "value": "Заменить на вебхук из основного Workflow",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        816
+      ],
+      "id": "91280149-44c7-4790-8a98-2aea529962e2",
+      "name": "SET Telegram Bot 1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f404bab6-5dfb-42a6-991f-c6fd6f05fe15",
+              "name": "api_key",
+              "value": "Заменить на API key Telegram bot | из @BotFather",
+              "type": "string"
+            },
+            {
+              "id": "740e516f-160a-4ab2-82d6-a63382e3b803",
+              "name": "url_webhook",
+              "value": "Заменить на вебхук из основного Workflow",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        1024
+      ],
+      "id": "03e0f391-9d5d-4419-b562-b5e1a8dc0b0f",
+      "name": "SET Telegram Bot 2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "= https://api.telegram.org/bot{{ $json['api key'] }}/getMe",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        1056
+      ],
+      "id": "4be1398f-ed72-44e6-b996-ddf4b7c201ed",
+      "name": "Telegram Данные Привязки"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "SET Wazzup Личный": {
+      "main": [
+        [
+          {
+            "node": "Wazzup Привязка",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wazzup Проверка Вебхука",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET Wazzup Клиента": {
+      "main": [
+        [
+          {
+            "node": "Wazzup Привязка",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wazzup Проверка Вебхука",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "СТАРТ": {
+      "main": [
+        [
+          {
+            "node": "SET Wazzup Личный",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET Telegram Bot 1": {
+      "main": [
+        [
+          {
+            "node": "Telegram Привязка",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Проверка Вебхука",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Данные Привязки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SET Telegram Bot 2": {
+      "main": [
+        [
+          {
+            "node": "Telegram Привязка",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Проверка Вебхука",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram Данные Привязки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f594af60-9d33-40d1-b089-7194f95d5607",
+  "meta": {
+    "instanceId": "89117b89e6ee2e2d36a3f934f1a63e32c1c204c62e00bb625da8c39baf77c2c7"
+  },
+  "id": "BXDf2mlh7HDWNkw8",
+  "tags": [
+    {
+      "createdAt": "2025-05-05T01:58:24.104Z",
+      "updatedAt": "2025-05-05T01:58:24.104Z",
+      "id": "TQhE2B8hgPAxRAi1",
+      "name": "PrideAIBot"
+    }
+  ]
+}
