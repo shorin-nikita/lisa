@@ -114,6 +114,7 @@ python3 CTAPT.py
 
 ```bash
 # Запустить скрипт обновления
+cd lisa
 python3 O6HOBA.py
 ```
 
