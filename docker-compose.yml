@@ -412,16 +412,16 @@ services:
     container_name: whisper
     restart: unless-stopped
     expose:
-      - 8090/tcp
+      - 8000/tcp
     volumes:
       - whisper_models:/root/.cache/huggingface
     environment:
       - WHISPER__MODEL=base
       - WHISPER__INFERENCE_DEVICE=cpu
       - WHISPER__HOST=0.0.0.0
-      - WHISPER__PORT=8090
+      - WHISPER__PORT=8000
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

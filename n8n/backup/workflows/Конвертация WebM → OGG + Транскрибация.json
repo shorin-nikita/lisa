@@ -1,0 +1,292 @@
+{
+  "name": "Конвертация WebM → OGG + Транскрибация",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 🎙️ Конвертация WebM → OGG + Транскрибация\n\nАвтор: [Nikita Shorin](https://www.youtube.com/@shorin_nikita)\n\n## Описание\nВоркфлоу конвертирует видеофайлы WebM в компактные аудио OGG с кодеком Opus и автоматически транскрибирует их с помощью локального Whisper.\n\n## Быстрый старт:\n\n1. 🟡 **Форма для загрузки**:\n   - Откройте URL формы из ноды \"Отправка формы\"\n   - Загрузите WebM файл через форму\n\n2. 🟢**Текст**:\n   - Используйте транскрибированный текст для любых целей\n \n## Функции:\n- ✅ Конвертация WebM в OGG (Opus codec)\n- ✅ Экстремальное сжатие: 32 kbit/s, mono, 16 kHz\n- ✅ Оптимизация для голоса (VoIP application)\n- ✅ Автоматическая транскрибация через локальный Whisper\n- ✅ Обработка без сохранения на диск (временные файлы /tmp)\n- ✅ Автоматическая очистка временных файлов\n\n## Архитектура:\n1. **Отправка формы** - загрузка WebM файла\n2. **Генерация путей** - создание уникальных путей /tmp для файлов\n3. **Запись входного файла** - сохранение WebM во временную директорию\n4. **Конвертация FFmpeg** - извлечение аудио и конвертация в OGG Opus\n5. **Чтение выходного файла** - загрузка готового OGG\n6. **Транскрибация Whisper** - распознавание речи через локальный Whisper API\n7. **Удаление временных файлов** - очистка /tmp\n8. **Текст** - вывод транскрибированного текста\n\n## Результат:\n- **Входной файл**: WebM (видео + аудио)\n- **Выходной файл**: OGG Opus (только аудио, ~240 KB/мин)\n- **Транскрипция**: Текстовая расшифровка речи\n- **Сжатие**: ~95% экономия места (4.4 MB → 289 KB)\n- **Скорость**: ~48x быстрее реального времени\n\n# Больше AI автоматизации: [@PrideAIBot](https://t.me/PrideAIBot)",
+        "height": 1116,
+        "width": 1088,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        320,
+        272
+      ],
+      "id": "716349db-8a88-4135-9469-94fc95b376da",
+      "name": "📝 Инструкция"
+    },
+    {
+      "parameters": {
+        "formTitle": "Конвертация WebM в OGG",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "data",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        368,
+        96
+      ],
+      "id": "26c82880-7faf-44b6-935b-008603acc102",
+      "name": "Отправка формы",
+      "webhookId": "b2a38a9e-827b-4ed2-a7c3-cb1b974e9bb2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Генерируем уникальные пути для временных файлов\nconst timestamp = Date.now();\nconst inputPath = `/tmp/input_${timestamp}.webm`;\nconst outputPath = `/tmp/output_${timestamp}.ogg`;\n\nreturn {\n  json: {\n    inputPath: inputPath,\n    outputPath: outputPath\n  },\n  binary: {\n    data: items[0].binary.data\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        96
+      ],
+      "id": "ab80ba0a-6892-4a09-a521-52669a2e3828",
+      "name": "Генерация путей"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $json.inputPath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        816,
+        96
+      ],
+      "id": "88bf49c0-a65f-43eb-a37c-9531701e25cf",
+      "name": "Запись входного файла"
+    },
+    {
+      "parameters": {
+        "command": "=ffmpeg -y -i {{ $json.inputPath }} -map 0:a:0 -vn -c:a libopus -b:a 32k -vbr constrained -ac 1 -ar 16000 -application voip -map_metadata -1 {{ $json.outputPath }}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        96
+      ],
+      "id": "c06849cd-d3c2-4704-9248-ecc7ac7f822f",
+      "name": "Конвертация FFmpeg"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('Генерация путей').item.json.outputPath }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        96
+      ],
+      "id": "50216447-a6a1-4b31-b83c-70094319ebce",
+      "name": "Чтение выходного файла"
+    },
+    {
+      "parameters": {
+        "command": "=rm -f {{ $('Генерация путей').item.json.inputPath }} {{ $('Генерация путей').item.json.outputPath }}"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        96
+      ],
+      "id": "bb92e433-2df4-4975-a84e-bd1a52f29030",
+      "name": "Удаление временных файлов"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "width": 150,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        80
+      ],
+      "id": "cd93f8cd-e603-479f-b689-ebb608dfc2aa",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "width": 182
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        320,
+        80
+      ],
+      "id": "c3f8efe4-b60d-4ba8-a4e6-18425b136dec",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://whisper:8000/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "base"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1488,
+        96
+      ],
+      "id": "e275d8b4-35bc-439d-90bb-334b3defd3ef",
+      "name": "Транскрибация Whisper"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f28e16d8-1917-4213-a2a9-7cfed7fc3272",
+              "name": "text",
+              "value": "={{ $('Транскрибация аудио').item.json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1952,
+        96
+      ],
+      "id": "8510406e-a4c8-4839-b252-43d03d4b65f1",
+      "name": "Текст"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Отправка формы": {
+      "main": [
+        [
+          {
+            "node": "Генерация путей",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Генерация путей": {
+      "main": [
+        [
+          {
+            "node": "Запись входного файла",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запись входного файла": {
+      "main": [
+        [
+          {
+            "node": "Конвертация FFmpeg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Конвертация FFmpeg": {
+      "main": [
+        [
+          {
+            "node": "Чтение выходного файла",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Чтение выходного файла": {
+      "main": [
+        [
+          {
+            "node": "Транскрибация Whisper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Удаление временных файлов": {
+      "main": [
+        [
+          {
+            "node": "Текст",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Транскрибация Whisper": {
+      "main": [
+        [
+          {
+            "node": "Удаление временных файлов",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c773a6fc-0548-4ddf-aa03-4a6b4bfa1cb5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "23cf3188a7a78c72aa92505bbe7f3db71496fd4517b6bf7e3328ce876876cb8a"
+  },
+  "id": "0lEfCRIxMDUBeh8c",
+  "tags": [
+    {
+      "updatedAt": "2025-05-05T01:58:24.104Z",
+      "createdAt": "2025-05-05T01:58:24.104Z",
+      "id": "TQhE2B8hgPAxRAi1",
+      "name": "PrideAIBot"
+    }
+  ]
+}
