@@ -691,7 +691,7 @@ def main():
                 webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
             else:
                 webui_url = f"http://{server_ip}:8002"
-            print(f"  • Open WebUI: {webui_url}")
+        print(f"  • Open WebUI: {webui_url}")
         
         print(f"  • Supabase: {supabase_url}")
         print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и активируйте план Community Edition{Colors.ENDC}\n")
