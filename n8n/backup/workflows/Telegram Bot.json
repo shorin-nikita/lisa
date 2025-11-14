@@ -1,19 +1,19 @@
 {
-  "name": "Telegram Bot",
+  "name": "Telegram bot",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "telegam-123124",
+        "path": "telegram",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -4720,
-        600
+        960,
+        592
       ],
-      "id": "21547af3-f27d-4415-98cc-c11b993a4c23",
+      "id": "c64cee7c-0d38-4707-bc97-072ac9767860",
       "name": "Webhook",
       "webhookId": "2b86c161-6616-496f-9752-151e3cf28368"
     },
@@ -34,15 +34,15 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        -2704,
-        1056
+        2976,
+        1040
       ],
-      "id": "6c51d656-c218-47ac-b038-23ff4cd3f3c9",
-      "name": "Analyze image",
+      "id": "ba854177-5c94-4c1b-8a2e-78b3ced33248",
+      "name": "Анализ изображения",
       "credentials": {
         "openAiApi": {
-          "id": "kxjGbPTTXFAfAr4U",
-          "name": "OpenAI v7.23"
+          "id": "2Yb2Wc9AnMMj0Prk",
+          "name": "OpenAi account"
         }
       }
     },
@@ -63,11 +63,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3152,
-        672
+        2528,
+        656
       ],
-      "id": "9cb05a5a-d928-47cd-a376-85df49caf183",
-      "name": "Get File Info Voice"
+      "id": "9911fa78-4c58-473e-8199-2632427d9d46",
+      "name": "Получить инфо о голосовом файле"
     },
     {
       "parameters": {
@@ -77,11 +77,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -2928,
-        672
+        2752,
+        656
       ],
-      "id": "00b22ce0-918e-448d-b8ee-ff1735b696c8",
-      "name": "Download Voice File"
+      "id": "b01cc41b-d061-43c7-a0fd-989e2b4af1a9",
+      "name": "Скачать голосовой файл"
     },
     {
       "parameters": {
@@ -100,11 +100,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3152,
-        864
+        2528,
+        848
       ],
-      "id": "87659ef1-3df8-468a-89c0-8eeb88481bb4",
-      "name": "Get File Info Audio"
+      "id": "3e155e4e-ff8f-44f5-bc7e-3a5aa4d8863c",
+      "name": "Получить инфо об аудиофайле"
     },
     {
       "parameters": {
@@ -114,53 +114,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -2928,
-        864
+        2752,
+        848
       ],
-      "id": "381c1e6e-b454-41f3-8a43-e74541b5683e",
-      "name": "Download Audio File"
-    },
-    {
-      "parameters": {
-        "resource": "audio",
-        "operation": "transcribe",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
-      "position": [
-        -2704,
-        672
-      ],
-      "id": "e94db3af-898d-43cd-a0b3-fa69d11212af",
-      "name": "Transcribe a recording voice",
-      "credentials": {
-        "openAiApi": {
-          "id": "kxjGbPTTXFAfAr4U",
-          "name": "OpenAI v7.23"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "audio",
-        "operation": "transcribe",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
-      "position": [
-        -2704,
-        864
-      ],
-      "id": "df9baf73-43fd-4a6d-8302-50e5b09019e1",
-      "name": "Transcribe a recording audio",
-      "credentials": {
-        "openAiApi": {
-          "id": "kxjGbPTTXFAfAr4U",
-          "name": "OpenAI v7.23"
-        }
-      }
+      "id": "bc1171ca-6974-4fb6-85ca-a95d589c0790",
+      "name": "Скачать аудиофайл"
     },
     {
       "parameters": {
@@ -169,13 +127,13 @@
             {
               "id": "902016f5-1274-4d55-9b69-4f88b8df381e",
               "name": "text",
-              "value": "={{ $('Transcribe a recording voice').item.json.text }}",
+              "value": "={{ $json.text }}",
               "type": "string"
             },
             {
               "id": "c1aacee0-de5c-42a5-9c56-81fc92efb63d",
               "name": "temporary_message_id",
-              "value": "={{ $('Just a moment voice').item.json.result.message_id }}",
+              "value": "={{ $('Секунду прослушаю голос').item.json.result.message_id }}",
               "type": "string"
             }
           ]
@@ -185,11 +143,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2480,
-        672
+        3200,
+        656
       ],
-      "id": "f095e62d-fd41-497c-8e05-cc9f1b166314",
-      "name": "text voice"
+      "id": "886249c4-f0a8-4030-98a8-3f3cb6ba0446",
+      "name": "текст голос"
     },
     {
       "parameters": {
@@ -198,7 +156,7 @@
             {
               "id": "902016f5-1274-4d55-9b69-4f88b8df381e",
               "name": "text",
-              "value": "={{ $('Transcribe a recording audio').item.json.text }}",
+              "value": "={{ $json.text }}",
               "type": "string"
             },
             {
@@ -210,7 +168,7 @@
             {
               "id": "4c503d97-b914-4652-bed6-0ff3da2954eb",
               "name": "temporary_message_id",
-              "value": "={{ $('Just a moment audio').item.json.result.message_id }}",
+              "value": "={{ $('Секунду прослушаю аудио').item.json.result.message_id }}",
               "type": "string"
             }
           ]
@@ -220,11 +178,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2480,
-        864
+        3200,
+        848
       ],
-      "id": "a40c0987-3cb9-4ee8-a73b-68a837b84dfe",
-      "name": "text audio"
+      "id": "902945e6-a502-4720-b1eb-5e873dab25c3",
+      "name": "текст аудио"
     },
     {
       "parameters": {
@@ -239,7 +197,7 @@
             {
               "id": "cbace35d-49b5-4cdd-982a-5aa019e64727",
               "name": "temporary_message_id",
-              "value": "={{ $('Just a moment photo').item.json.result.message_id }}",
+              "value": "={{ $('Секунду посмотрю фото').item.json.result.message_id }}",
               "type": "string"
             }
           ]
@@ -249,16 +207,16 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2480,
-        1056
+        3200,
+        1040
       ],
-      "id": "fc1e5f8f-ccc7-439d-ae03-7f728f593fda",
-      "name": "text photo"
+      "id": "733623c7-68e1-4696-a627-b9c1d9bb0a0a",
+      "name": "текст фото"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -277,16 +235,16 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3600,
-        672
+        2080,
+        656
       ],
-      "id": "80fad534-4819-498d-bb28-57de134f1902",
-      "name": "Just a moment voice"
+      "id": "fb018341-31a3-4645-9c53-a5b29de0ffd4",
+      "name": "Секунду прослушаю голос"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -305,11 +263,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3600,
-        864
+        2080,
+        848
       ],
-      "id": "1c2ddb4c-0670-4415-9e50-1673f4f10788",
-      "name": "Just a moment audio"
+      "id": "43ef5d03-9741-4b74-bf68-b54b7ad7e245",
+      "name": "Секунду прослушаю аудио"
     },
     {
       "parameters": {
@@ -333,11 +291,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3376,
-        1056
+        2304,
+        1040
       ],
-      "id": "a8e25a07-077c-4b98-b393-17bf15d7ef56",
-      "name": "Just a moment photo"
+      "id": "17281851-44e5-4f36-bef5-0fc06c91f67b",
+      "name": "Секунду посмотрю фото"
     },
     {
       "parameters": {
@@ -348,16 +306,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -4496,
-        600
+        1184,
+        592
       ],
-      "id": "fbfb2245-5d1f-4a87-8787-fd074b0eb91c",
-      "name": "Log Webhook",
+      "id": "5f53a724-977b-4b57-bf6a-d3e28217611d",
+      "name": "Логирование Webhook",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       },
       "onError": "continueRegularOutput"
@@ -379,10 +337,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -4272,
-        600
+        1408,
+        592
       ],
-      "id": "2d4b2c10-5b21-4394-a0f5-dd566ae3d8d0",
+      "id": "b424a8a0-b4fd-4496-b9be-dcc36bb34715",
       "name": "API KEY ЗАМЕНИТЬ"
     },
     {
@@ -395,11 +353,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -4324,
-        560
+        1360,
+        544
       ],
-      "id": "fc89c868-c60f-40f1-8cad-df494730fb7e",
-      "name": "Sticky Note3"
+      "id": "20905431-30eb-41b3-9a51-ce050f18b52a",
+      "name": "Стикер 3"
     },
     {
       "parameters": {
@@ -411,27 +369,27 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -5680,
-        16
+        0,
+        0
       ],
-      "id": "1da64834-b38a-4d6f-8b05-ccf74f0d2085",
-      "name": "Sticky Note4"
+      "id": "210c11aa-1008-476d-9da2-f3243b65e13e",
+      "name": "Стикер 4"
     },
     {
       "parameters": {
         "content": "",
-        "height": 580,
+        "height": 212,
         "width": 180,
         "color": 4
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -2746,
-        636
+        2928,
+        992
       ],
-      "id": "1584d2ec-f8a6-45c6-9e5b-18baa8481cae",
-      "name": "Sticky Note5"
+      "id": "1ed91b5b-54f6-4f75-be5b-db2d9bddbf98",
+      "name": "Стикер 5"
     },
     {
       "parameters": {
@@ -442,11 +400,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -4762,
-        560
+        912,
+        544
       ],
-      "id": "248efac2-079c-4daf-8409-c0c769ae234e",
-      "name": "Sticky Note"
+      "id": "8659e06f-3d57-4eb4-8410-51b8f7406477",
+      "name": "Стикер"
     },
     {
       "parameters": {
@@ -477,16 +435,16 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -2032,
-        808
+        3648,
+        800
       ],
-      "id": "ad8f9586-0e73-4488-a97e-384751e854c0",
+      "id": "28b1c674-e2a3-4e00-869b-f8034b29b132",
       "name": "Первый чек",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       },
       "onError": "continueRegularOutput"
@@ -519,10 +477,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1808,
-        808
+        3872,
+        800
       ],
-      "id": "3272b21a-0b2d-4d99-b298-a5a0800e2b43",
+      "id": "3189aa7c-242a-4796-8429-6d0bfed10df0",
       "name": "Запись есть?"
     },
     {
@@ -539,35 +497,24 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        -912,
-        904
+        4768,
+        896
       ],
-      "id": "02ad6fe8-cd2c-43f1-81aa-542fa12b4d51",
-      "name": "Aggregate"
+      "id": "ff0ecadd-c76e-4feb-9e81-0f34c06b81a6",
+      "name": "Агрегация"
     },
     {
       "parameters": {
-        "jsCode": "// Получаем сгруппированный текст из Aggregate\nconst array = $json.text_content || [];\nconst joinedString = array.join(',');\n\n// Получаем chat_id из Webhook\nconst chat_id = $('Webhook').item.json.body.message.from.id;\n\n// Получаем temporary_message_id из Merge\nconst mergeData = $('Merge').item.json;\nconst temporary_message_id = mergeData.temporary_message_id || null;\n\n// More out-of-the-box AI automation solutions: https://t.me/PrideAIBot\nreturn [{\n  json: { \n    joinedString: joinedString,\n    chat_id: chat_id,\n    temporary_message_id: temporary_message_id\n  }\n}];"
+        "jsCode": "// Получаем сгруппированный текст из Агрегация\nconst array = $json.text_content || [];\nconst joinedString = array.join(',');\n\n// Получаем chat_id из Webhook\nconst chat_id = $('Webhook').item.json.body.message.from.id;\n\n// Получаем temporary_message_id из Объединение\nconst mergeData = $('Объединение').item.json;\nconst temporary_message_id = mergeData.temporary_message_id || null;\n\n// More out-of-the-box AI automation solutions: https://t.me/PrideAIBot\nreturn [{\n  json: { \n    joinedString: joinedString,\n    chat_id: chat_id,\n    temporary_message_id: temporary_message_id\n  }\n}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -688,
-        904
+        4992,
+        896
       ],
-      "id": "60f3ac35-2500-4681-82cf-900377b9b1f8",
-      "name": "Code"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        -4720,
-        112
-      ],
-      "id": "fdff531e-161c-4cd2-9eb3-b31818078f08",
-      "name": "When clicking ‘Execute workflow’"
+      "id": "56858720-9294-4302-8207-cf3f042268e7",
+      "name": "Код"
     },
     {
       "parameters": {
@@ -578,15 +525,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -4496,
-        112
+        1184,
+        96
       ],
-      "id": "fc09f520-f4f6-486e-b4f0-323f6e248bd5",
-      "name": "Create All Remaining Telegram Pride Components",
+      "id": "ee9a1150-47a9-4b0e-9f7a-81c4c326275c",
+      "name": "Создать все компоненты Telegram Pride",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
@@ -599,36 +546,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -267,
-        1168
+        5408,
+        1152
       ],
-      "id": "cc947a84-637d-4913-964f-16759da1c2f3",
-      "name": "Sticky Note6"
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "gpt-4.1-nano",
-          "mode": "list",
-          "cachedResultName": "gpt-4.1-nano"
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
-      "position": [
-        -232,
-        1184
-      ],
-      "id": "b50db6cd-d5af-4c7a-8a10-d5f7a3a9b394",
-      "name": "GPT 4.1",
-      "credentials": {
-        "openAiApi": {
-          "id": "kxjGbPTTXFAfAr4U",
-          "name": "OpenAI v7.23"
-        }
-      }
+      "id": "6d69074b-245c-4618-b6e6-ccd82a706dd7",
+      "name": "Стикер 6"
     },
     {
       "parameters": {
@@ -639,30 +561,30 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -149,
-        1168
+        5536,
+        1152
       ],
-      "id": "0afedf54-8e09-46dd-a427-26b8fb983d45",
-      "name": "Sticky Note1"
+      "id": "08aafd08-23a0-4a05-8caa-36f30eb29537",
+      "name": "Стикер 1"
     },
     {
       "parameters": {
         "sessionIdType": "customKey",
-        "sessionKey": "={{ $('Code').item.json.chat_id }}"
+        "sessionKey": "={{ $('Код').item.json.chat_id }}"
       },
-      "id": "83312339-ef17-4c54-a7d0-7f4168a4426c",
-      "name": "Postgres Memory",
+      "id": "e70db415-d9d4-42fe-b111-20301dc7b1b9",
+      "name": "Память Postgres",
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1,
       "position": [
-        -104,
-        1184
+        5568,
+        1168
       ],
       "notesInFlow": false,
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
@@ -676,11 +598,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1173,
-        884
+        4512,
+        880
       ],
-      "id": "5324367c-730f-4352-abb0-0a0b31a4f7a3",
-      "name": "Sticky Note9"
+      "id": "f9adfa71-6eec-45c5-9a09-c64d5668b4dc",
+      "name": "Стикер 9"
     },
     {
       "parameters": {
@@ -692,11 +614,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1621,
-        884
+        4064,
+        880
       ],
-      "id": "0fefbd1a-551d-456e-bf1a-4bab70bf418c",
-      "name": "Sticky Note10"
+      "id": "18e245cd-814c-45b6-a027-ee1829871557",
+      "name": "Стикер 10"
     },
     {
       "parameters": {
@@ -708,11 +630,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1621,
-        692
+        4064,
+        688
       ],
-      "id": "a5dba880-6b0b-4c06-9d8b-38945d1d2853",
-      "name": "Sticky Note11"
+      "id": "abd64e16-ab31-4a55-93d1-c41b24bd1127",
+      "name": "Стикер 11"
     },
     {
       "parameters": {
@@ -724,11 +646,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -2069,
-        788
+        3616,
+        784
       ],
-      "id": "f65f1382-5450-4ca3-90c7-f0ae51fd95c9",
-      "name": "Sticky Note12"
+      "id": "eca4185c-050e-447f-8272-5b142bf2e2b5",
+      "name": "Стикер 12"
     },
     {
       "parameters": {
@@ -740,11 +662,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -4533,
-        560
+        1152,
+        544
       ],
-      "id": "79fc9e93-5d82-44bb-b738-0b68ad3dece0",
-      "name": "Sticky Note13"
+      "id": "ea0b1df0-1c88-4729-b17d-abf457e8cba5",
+      "name": "Стикер 13"
     },
     {
       "parameters": {
@@ -756,11 +678,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -4768,
-        32
+        912,
+        16
       ],
-      "id": "9b55564d-87f6-4c8a-aa81-acddf4837ef5",
-      "name": "Sticky Note14"
+      "id": "e1ef7301-9efd-46ab-a1e8-3df44a3a33bb",
+      "name": "Стикер 14"
     },
     {
       "parameters": {
@@ -790,15 +712,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        -1136,
-        904
+        4544,
+        896
       ],
-      "id": "eb16171e-974d-4ba5-acb6-983e50d4fa1c",
+      "id": "b60cf101-5851-48e1-b131-df648a5c2359",
       "name": "Сбор сообщений",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
@@ -809,11 +731,11 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        -1360,
-        904
+        4320,
+        896
       ],
-      "id": "097c3559-34ae-42f5-8e07-21b4da4e7de9",
-      "name": "Wait",
+      "id": "0be93afb-e8df-4fdc-9749-397d45fcf1e4",
+      "name": "Ожидание",
       "webhookId": "a7a4e5d2-3b39-437a-a68d-86d90f103cdc"
     },
     {
@@ -927,11 +849,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        -3824,
-        736
+        1856,
+        720
       ],
-      "id": "8d5740c4-ad30-493f-b4e9-8161d16eb9b1",
-      "name": "Type message?"
+      "id": "16e77652-5ce3-41e2-b776-1ac2e4b0e7b6",
+      "name": "Тип сообщения?"
     },
     {
       "parameters": {
@@ -1115,11 +1037,11 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        -4048,
-        504
+        1632,
+        496
       ],
-      "id": "b6704935-125d-437f-a143-6f5b6b04ed24",
-      "name": "Command?"
+      "id": "13b0d096-cfc1-4df8-a129-848086929ecd",
+      "name": "Команда?"
     },
     {
       "parameters": {
@@ -1128,10 +1050,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3824,
-        336
+        1856,
+        320
       ],
-      "id": "345d217d-c129-48df-90b1-3dde2b8d5f65",
+      "id": "f0a4b087-780c-48ef-8e27-bc246398697a",
       "name": "📊 Analytics Data Processor"
     },
     {
@@ -1143,15 +1065,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -3600,
-        336
+        2080,
+        320
       ],
-      "id": "343325ee-aaf5-4efb-a617-36ae19f9b143",
+      "id": "8a11b1f2-6c6b-4eb0-8467-e78ffbdd883f",
       "name": "🔍 Execute Analytics Query",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       },
       "continueOnFail": true
@@ -1163,10 +1085,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3376,
-        336
+        2304,
+        320
       ],
-      "id": "94afb2e9-a4a6-41c2-87ef-71be508d4bb2",
+      "id": "38547610-0878-45fe-96e5-ace96759422c",
       "name": "💬 Format & Send Response"
     },
     {
@@ -1199,10 +1121,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3152,
-        336
+        2528,
+        320
       ],
-      "id": "f15931e9-e341-46ab-84c5-b88c07010077",
+      "id": "e618cf15-934c-48e8-a00d-6194f57022cf",
       "name": "📱 Send Analytics Message"
     },
     {
@@ -1222,11 +1144,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -2928,
-        1056
+        2752,
+        1040
       ],
-      "id": "1f2dc25e-118a-4dcc-b74a-2e5d4459bfcb",
-      "name": "Get File Info Image"
+      "id": "83773cd5-8020-437b-adf9-1c6c7ab126b9",
+      "name": "Получить инфо о файле изображения"
     },
     {
       "parameters": {
@@ -1250,11 +1172,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3152,
-        1056
+        2528,
+        1040
       ],
-      "id": "75db50c0-c026-4e94-93a4-3e11532ec8b5",
-      "name": "Telegram typing3"
+      "id": "9019002e-d5fc-4aba-875b-7f2f4d3ffb01",
+      "name": "Telegram печатает 3"
     },
     {
       "parameters": {
@@ -1278,11 +1200,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3376,
-        864
+        2304,
+        848
       ],
-      "id": "15fc15be-45d1-4dc0-a818-70cb38e022c5",
-      "name": "Telegram typing2"
+      "id": "3b831fd3-610b-420b-bef1-3a4efa8f7212",
+      "name": "Telegram печатает 2"
     },
     {
       "parameters": {
@@ -1306,11 +1228,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -3376,
-        672
+        2304,
+        656
       ],
-      "id": "608b875f-b1ae-475c-95b7-b615e86b7e28",
-      "name": "Telegram typing1"
+      "id": "2e1bf975-23af-4e98-ad81-07178ba3d0e3",
+      "name": "Telegram печатает 1"
     },
     {
       "parameters": {
@@ -1334,16 +1256,16 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -464,
-        960
+        5216,
+        944
       ],
-      "id": "178e63d9-4b35-47ec-907f-4fb1bd83fcdf",
-      "name": "Telegram typing"
+      "id": "86927bff-157a-4761-952a-3d8b9020467f",
+      "name": "Telegram печатает"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/deleteMessage",
+        "url": "=https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/deleteMessage",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -1353,7 +1275,7 @@
             },
             {
               "name": "message_id",
-              "value": "={{ $('Code').item.json.temporary_message_id }}"
+              "value": "={{ $('Код').item.json.temporary_message_id }}"
             }
           ]
         },
@@ -1362,11 +1284,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        336,
-        888
+        6016,
+        880
       ],
-      "id": "e6bdd367-2357-4c46-9645-9331e34438ba",
-      "name": "Delete temporary_message_id"
+      "id": "87d5684d-a925-4abd-ba51-c7a64f830a16",
+      "name": "Удалить временное сообщение"
     },
     {
       "parameters": {
@@ -1380,7 +1302,7 @@
           "conditions": [
             {
               "id": "58c45cea-033f-457f-aa35-a3e610a88253",
-              "leftValue": "={{ $('Code').item.json.temporary_message_id }}",
+              "leftValue": "={{ $('Код').item.json.temporary_message_id }}",
               "rightValue": "",
               "operator": {
                 "type": "string",
@@ -1396,11 +1318,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        112,
-        960
+        5792,
+        944
       ],
-      "id": "e4f71b7b-3fba-449b-8d31-13796042b86f",
-      "name": "temporary_message_id exixts?"
+      "id": "8430fd98-1a50-4fbe-932a-b9f2fa230f14",
+      "name": "Временное сообщение существует?"
     },
     {
       "parameters": {
@@ -1409,16 +1331,16 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        -2256,
-        776
+        3424,
+        768
       ],
-      "id": "543b616f-418f-4a0e-a423-2a2d230bbb62",
-      "name": "Merge"
+      "id": "c8612c44-3dfc-49d5-9366-e81342395ff0",
+      "name": "Объединение"
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $('Code').item.json.joinedString }}",
+        "text": "={{ $('Код').item.json.joinedString }}",
         "options": {
           "systemMessage": "Ты - Л.И.С.А., консультант по проекту Л.И.С.А. (Локальная Интеллектуальная Система Автоматизации).\n\n⚠️ КОНТЕКСТ: Пользователь общается с ботом проекта Л.И.С.А. Все вопросы про \"установку\", \"обновление\", \"настройку\" БЕЗ уточнения относятся к Л.И.С.А., а НЕ к другим системам.\n\n⚠️ СТРОГОЕ ПРАВИЛО: НЕ отвечай на вопросы про другие системы (amoCRM, Битрикс24, WordPress и т.д.) - сразу направляй в Telegram чаты.\n\n## О проекте:\nSelf-hosted AI платформа на Docker Compose с N8N, Supabase, Ollama, Whisper, FFmpeg\n\nРежимы: MINI (4GB RAM) и MAX (16GB RAM)\n\n## КАК УСТАНОВИТЬ:\n\nВопросы: \"Как установить?\", \"Установка\", \"Как поставить Л.И.С.А.?\", \"Как начать?\"\n\nОтвет:\n```bash\ngit clone https://github.com/shorin-nikita/lisa.git\ncd lisa\npython3 CTAPT.py\n```\n\nУстановщик автоматически предложит режим (MINI/MAX), определит GPU, создаст .env и запустит контейнеры.\n\n## КАК ОБНОВИТЬ:\n\nВопросы: \"Как обновить?\", \"Обновление\", \"Как обновить N8N?\", \"Апдейт\"\n\nОтвет:\n```bash\ncd lisa\npython3 O6HOBA.py\n```\n\nСкрипт автоматически создаст резервную копию, остановит сервисы, получит обновления из GitHub, обновит Docker образы, пересоберёт n8n-ffmpeg и перезапустит систему. Данные сохраняются.\n\n## ДОСТУП К СЕРВИСАМ:\n\nЛокально:\n- N8N: http://localhost:8001\n- Supabase: http://localhost:8005\n- Open WebUI: http://localhost:8002 (только MAX)\n- Flowise: http://localhost:8003 (только MAX)\n\n## WHISPER API:\n\nURL: http://whisper:8090/v1/audio/transcriptions (внутри Docker)\nМетод: POST, модель: base (рекомендуется)\n\n## ЧАСТЫЕ ПРОБЛЕМЫ:\n\n1. **HTTPS не работает** - проверь email в .env (должен быть настоящим) и DNS\n2. **Whisper падает** - используй модель base, не medium/large\n3. **FFmpeg не найден** - docker compose -p localai build n8n\n4. **Permission denied** - chmod 777 shared/\n5. **PostgreSQL не стартует** - docker compose -p localai down -v && python3 CTAPT.py\n\n## ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ:\n\n```bash\ndocker compose -p localai down\nnano .env  # INSTALLATION_MODE=mini → max\npython3 start_services.py --mode max\n```\n\n## УПРАВЛЕНИЕ:\n\n```bash\ndocker ps              # статус\ndocker compose -p localai logs -f  # логи\ndocker compose -p localai down     # остановка\npython3 start_services.py          # перезапуск\n```\n\n## ДЛЯ ДРУГИХ ВОПРОСОВ:\n\nЕсли вопрос НЕ про установку/обновление/проблемы Л.И.С.А. (например: amoCRM, другие интеграции, не связанные с Л.И.С.А. темы), отвечай:\n\n\"У меня нет информации по этому вопросу, но вы можете:\n\n🆘 **Задать вопрос экспертам:**\nЧат поддержки: https://t.me/durov_meteverse\n\n🤖 **Присоединиться к AI сообществу:**\n@PrideAIBot: https://t.me/PrideAIBot\n• Все шаблоны комьюнити\n• Обмен опытом с экспертами\n\nТам помогут! 😊\"\n\n## ПРАВИЛА:\n1. Вопросы \"установить\"/\"обновить\" БЕЗ уточнения = про Л.И.С.А.\n2. Отвечай КРАТКО - команда + что делает\n3. НЕ придумывай информацию\n4. Вопросы про amoCRM, Битрикс, другие системы → сразу в чат\n5. Код в ```bash``` блоках\n6. Всегда на русском"
         }
@@ -1426,10 +1348,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.1,
       "position": [
-        -240,
-        960
+        5440,
+        944
       ],
-      "id": "f70e19bf-41d0-4ac0-895d-8b161af32456",
+      "id": "e87b864d-b01f-4bfe-adf2-8b1d7efe05bb",
       "name": "Л.И.С.А."
     },
     {
@@ -1442,11 +1364,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -256,
-        944
+        5424,
+        928
       ],
-      "id": "d206e88a-6df9-4040-80ff-bfdefb7a72d3",
-      "name": "Sticky Note2"
+      "id": "c2aa0566-5815-4e2b-8b81-5a594512cec0",
+      "name": "Стикер 2"
     },
     {
       "parameters": {
@@ -1458,11 +1380,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -501,
-        748
+        5184,
+        736
       ],
-      "id": "4631164f-ee93-4b77-9d96-4c4a80a4a1fd",
-      "name": "Sticky Note15"
+      "id": "08672d0b-1747-446f-953f-3bb0363af264",
+      "name": "Стикер 15"
     },
     {
       "parameters": {
@@ -1474,11 +1396,11 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -3637,
-        296
+        2048,
+        288
       ],
-      "id": "490ea88b-9515-47fc-aa28-19c9ebb2ac2a",
-      "name": "Sticky Note16"
+      "id": "4e551ec4-8eb0-4d78-8621-b0ec6c5bbe77",
+      "name": "Стикер 16"
     },
     {
       "parameters": {
@@ -1490,51 +1412,51 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -4533,
-        72
+        1152,
+        64
       ],
-      "id": "29c2ac44-0cd1-4f37-8857-a4875183e37e",
-      "name": "Sticky Note17"
+      "id": "e0fc1434-53e8-4c13-b2b1-68cf375bfa4e",
+      "name": "Стикер 17"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO telegram_message_buffer (\n  chat_id,\n  text_content\n) VALUES (\n  '{{ $('Webhook').item.json.body.message.from.id }}',\n  '{{ $('Merge').item.json.text }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO telegram_message_buffer (\n  chat_id,\n  text_content\n) VALUES (\n  '{{ $('Webhook').item.json.body.message.from.id }}',\n  '{{ $('Объединение').item.json.text }}'\n)\nRETURNING id;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -1584,
-        712
+        4096,
+        704
       ],
-      "id": "60163d3d-6104-42bd-ad4f-4fab4c676d89",
+      "id": "eed86e11-6642-4aa3-805e-c48d796cf062",
       "name": "Запись в буфер - повтор",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO telegram_message_buffer (\n  chat_id,\n  text_content\n) VALUES (\n  '{{ $('Webhook').item.json.body.message.from.id }}',\n  '{{ $('Merge').item.json.text }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO telegram_message_buffer (\n  chat_id,\n  text_content\n) VALUES (\n  '{{ $('Webhook').item.json.body.message.from.id }}',\n  '{{ $('Объединение').item.json.text }}'\n)\nRETURNING id;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -1584,
-        904
+        4096,
+        896
       ],
-      "id": "978d1c01-46ac-4ac3-af59-167982ed4154",
+      "id": "0858f44d-8b7f-4f86-80db-c84446062041",
       "name": "Запись в буфер - первый",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
@@ -1567,15 +1489,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -464,
-        768
+        5216,
+        752
       ],
-      "id": "880d8066-23a1-4174-9a99-de84ef95c7f6",
+      "id": "c906db04-aec9-440b-8353-74770a980ca6",
       "name": "Очистить буфер",
       "credentials": {
         "postgres": {
-          "id": "aPsGp4xNMaxlJNBz",
-          "name": "Postgres shorinBase"
+          "id": "BEYJlNGtuQex8xdR",
+          "name": "Postgres account"
         }
       }
     },
@@ -1596,22 +1518,22 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -2480,
-        480
+        3200,
+        464
       ],
-      "id": "06f07aa1-144d-4335-9489-61d9b21ac308",
-      "name": "text"
+      "id": "8698ea95-18fd-41d8-8bc2-a2f723d911e5",
+      "name": "текст"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
             {
               "name": "chat_id",
-              "value": "={{ $('Code').item.json.chat_id }}"
+              "value": "={{ $('Код').item.json.chat_id }}"
             },
             {
               "name": "text",
@@ -1624,11 +1546,107 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        560,
-        960
+        6240,
+        944
       ],
-      "id": "6c6fa55f-00a8-42ea-b3c3-878c5c221348",
-      "name": "Send Message Telegram Bot"
+      "id": "aca4b55f-7998-44b3-9bfd-d002af929d53",
+      "name": "Отправить сообщение в Telegram"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://whisper:8000/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "base"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2976,
+        656
+      ],
+      "id": "44d4ec34-6cdd-44d9-8978-3906e96d1f93",
+      "name": "Транскрибация Whisper голос"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://whisper:8000/v1/audio/transcriptions",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "base"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2976,
+        848
+      ],
+      "id": "fa3690a9-c6fc-43a9-b748-f62c369b7940",
+      "name": "Транскрибация Whisper аудио"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-nano",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-nano"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5440,
+        1168
+      ],
+      "id": "adc5cf13-2a92-4534-aa12-8e7fa59b6d09",
+      "name": "GPT 4.1 nano",
+      "credentials": {
+        "openAiApi": {
+          "id": "2Yb2Wc9AnMMj0Prk",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        960,
+        96
+      ],
+      "id": "fe35220a-edbc-4b37-8933-30b498fa6db6",
+      "name": "Запустить один раз"
     }
   ],
   "pinData": {
@@ -1636,23 +1654,21 @@
       {
         "json": {
           "headers": {
-            "host": "api.ai1618.ru",
-            "content-length": "510",
+            "host": "n8n.shorinlisa.ru",
+            "content-length": "892",
             "accept-encoding": "gzip, deflate",
             "content-type": "application/json",
+            "via": "1.1 Caddy",
             "x-forwarded-for": "91.108.5.110",
-            "x-forwarded-host": "api.ai1618.ru",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "6b1d5962367f",
-            "x-real-ip": "91.108.5.110"
+            "x-forwarded-host": "n8n.shorinlisa.ru",
+            "x-forwarded-proto": "https"
           },
           "params": {},
           "query": {},
           "body": {
-            "update_id": 604475376,
+            "update_id": 604475399,
             "message": {
-              "message_id": 6905,
+              "message_id": 6947,
               "from": {
                 "id": 760159041,
                 "is_bot": false,
@@ -1669,7 +1685,30 @@
                 "username": "SHORIN1618",
                 "type": "private"
               },
-              "date": 1762309534,
+              "date": 1763063859,
+              "forward_origin": {
+                "type": "user",
+                "sender_user": {
+                  "id": 760159041,
+                  "is_bot": false,
+                  "first_name": "Nikita",
+                  "last_name": "Shorin",
+                  "username": "SHORIN1618",
+                  "language_code": "ru",
+                  "is_premium": true
+                },
+                "date": 1762309534
+              },
+              "forward_from": {
+                "id": 760159041,
+                "is_bot": false,
+                "first_name": "Nikita",
+                "last_name": "Shorin",
+                "username": "SHORIN1618",
+                "language_code": "ru",
+                "is_premium": true
+              },
+              "forward_date": 1762309534,
               "voice": {
                 "duration": 4,
                 "mime_type": "audio/ogg",
@@ -1679,168 +1718,135 @@
               }
             }
           },
-          "webhookUrl": "https://api.ai1618.ru/webhook/telegam-123124",
+          "webhookUrl": "https://n8n.shorinlisa.ru/webhook/telegaqq-123124",
           "executionMode": "production"
         }
       }
     ]
   },
   "connections": {
-    "Webhook": {
+    "Анализ изображения": {
       "main": [
         [
           {
-            "node": "Log Webhook",
+            "node": "текст фото",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analyze image": {
+    "Получить инфо о голосовом файле": {
       "main": [
         [
           {
-            "node": "text photo",
+            "node": "Скачать голосовой файл",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get File Info Voice": {
+    "Скачать голосовой файл": {
       "main": [
         [
           {
-            "node": "Download Voice File",
+            "node": "Транскрибация Whisper голос",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Download Voice File": {
+    "Получить инфо об аудиофайле": {
       "main": [
         [
           {
-            "node": "Transcribe a recording voice",
+            "node": "Скачать аудиофайл",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get File Info Audio": {
+    "Скачать аудиофайл": {
       "main": [
         [
           {
-            "node": "Download Audio File",
+            "node": "Транскрибация Whisper аудио",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Download Audio File": {
+    "текст голос": {
       "main": [
         [
           {
-            "node": "Transcribe a recording audio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Transcribe a recording voice": {
-      "main": [
-        [
-          {
-            "node": "text voice",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Transcribe a recording audio": {
-      "main": [
-        [
-          {
-            "node": "text audio",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "text voice": {
-      "main": [
-        [
-          {
-            "node": "Merge",
+            "node": "Объединение",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "text audio": {
+    "текст аудио": {
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Объединение",
             "type": "main",
             "index": 2
           }
         ]
       ]
     },
-    "text photo": {
+    "текст фото": {
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Объединение",
             "type": "main",
             "index": 3
           }
         ]
       ]
     },
-    "Just a moment voice": {
+    "Секунду прослушаю голос": {
       "main": [
         [
           {
-            "node": "Telegram typing1",
+            "node": "Telegram печатает 1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Just a moment audio": {
+    "Секунду прослушаю аудио": {
       "main": [
         [
           {
-            "node": "Telegram typing2",
+            "node": "Telegram печатает 2",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Just a moment photo": {
+    "Секунду посмотрю фото": {
       "main": [
         [
           {
-            "node": "Telegram typing3",
+            "node": "Telegram печатает 3",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Webhook": {
+    "Логирование Webhook": {
       "main": [
         [
           {
@@ -1855,7 +1861,7 @@
       "main": [
         [
           {
-            "node": "Command?",
+            "node": "Команда?",
             "type": "main",
             "index": 0
           }
@@ -1891,18 +1897,18 @@
         ]
       ]
     },
-    "Aggregate": {
+    "Агрегация": {
       "main": [
         [
           {
-            "node": "Code",
+            "node": "Код",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code": {
+    "Код": {
       "main": [
         [
           {
@@ -1911,36 +1917,14 @@
             "index": 0
           },
           {
-            "node": "Telegram typing",
+            "node": "Telegram печатает",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "Create All Remaining Telegram Pride Components",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "GPT 4.1": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "Л.И.С.А.",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Postgres Memory": {
+    "Память Postgres": {
       "ai_memory": [
         [
           {
@@ -1955,14 +1939,14 @@
       "main": [
         [
           {
-            "node": "Aggregate",
+            "node": "Агрегация",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait": {
+    "Ожидание": {
       "main": [
         [
           {
@@ -1973,39 +1957,39 @@
         ]
       ]
     },
-    "Type message?": {
+    "Тип сообщения?": {
       "main": [
         [
           {
-            "node": "text",
+            "node": "текст",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Just a moment voice",
+            "node": "Секунду прослушаю голос",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Just a moment audio",
+            "node": "Секунду прослушаю аудио",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Just a moment photo",
+            "node": "Секунду посмотрю фото",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Command?": {
+    "Команда?": {
       "main": [
         [
           {
@@ -2058,7 +2042,7 @@
         ],
         [
           {
-            "node": "Type message?",
+            "node": "Тип сообщения?",
             "type": "main",
             "index": 0
           }
@@ -2098,51 +2082,51 @@
         ]
       ]
     },
-    "Get File Info Image": {
+    "Получить инфо о файле изображения": {
       "main": [
         [
           {
-            "node": "Analyze image",
+            "node": "Анализ изображения",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Telegram typing3": {
+    "Telegram печатает 3": {
       "main": [
         [
           {
-            "node": "Get File Info Image",
+            "node": "Получить инфо о файле изображения",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Telegram typing2": {
+    "Telegram печатает 2": {
       "main": [
         [
           {
-            "node": "Get File Info Audio",
+            "node": "Получить инфо об аудиофайле",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Telegram typing1": {
+    "Telegram печатает 1": {
       "main": [
         [
           {
-            "node": "Get File Info Voice",
+            "node": "Получить инфо о голосовом файле",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Telegram typing": {
+    "Telegram печатает": {
       "main": [
         [
           {
@@ -2153,36 +2137,36 @@
         ]
       ]
     },
-    "Delete temporary_message_id": {
+    "Удалить временное сообщение": {
       "main": [
         [
           {
-            "node": "Send Message Telegram Bot",
+            "node": "Отправить сообщение в Telegram",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "temporary_message_id exixts?": {
+    "Временное сообщение существует?": {
       "main": [
         [
           {
-            "node": "Delete temporary_message_id",
+            "node": "Удалить временное сообщение",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Send Message Telegram Bot",
+            "node": "Отправить сообщение в Telegram",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Merge": {
+    "Объединение": {
       "main": [
         [
           {
@@ -2197,7 +2181,7 @@
       "main": [
         [
           {
-            "node": "temporary_message_id exixts?",
+            "node": "Временное сообщение существует?",
             "type": "main",
             "index": 0
           }
@@ -2208,18 +2192,73 @@
       "main": [
         [
           {
-            "node": "Wait",
+            "node": "Ожидание",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "text": {
+    "текст": {
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Объединение",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Транскрибация Whisper голос": {
+      "main": [
+        [
+          {
+            "node": "текст голос",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Транскрибация Whisper аудио": {
+      "main": [
+        [
+          {
+            "node": "текст аудио",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT 4.1 nano": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Л.И.С.А.",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Логирование Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запустить один раз": {
+      "main": [
+        [
+          {
+            "node": "Создать все компоненты Telegram Pride",
             "type": "main",
             "index": 0
           }
@@ -2231,16 +2270,15 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b3ee38f3-69a1-4f2c-85e5-0cc3ab79f449",
+  "versionId": "1a6be74f-dbc9-4520-913e-b0227a15bffd",
   "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "89117b89e6ee2e2d36a3f934f1a63e32c1c204c62e00bb625da8c39baf77c2c7"
+    "instanceId": "ab7e7ea1cf4cebe4a7745effb3ef0874d3a4e9da44907882630cca4badebaaf9"
   },
-  "id": "LPcw2cPQjw65652d",
+  "id": "jX8u6HDXqbtrqvSk",
   "tags": [
     {
-      "createdAt": "2025-05-05T01:58:24.104Z",
       "updatedAt": "2025-05-05T01:58:24.104Z",
+      "createdAt": "2025-05-05T01:58:24.104Z",
       "id": "TQhE2B8hgPAxRAi1",
       "name": "PrideAIBot"
     }

@@ -4,7 +4,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $json['api_key'] }}/setWebhook?url={{ $json['url_webhook'] }}",
+        "url": "=https://api.telegram.org/bot{{ $json['api_key'] }}/setWebhook?url={{ $json['url_webhook'] }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -150,7 +150,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $json['api_key'] }}/getWebhookInfo",
+        "url": "=https://api.telegram.org/bot{{ $json['api_key'] }}/getWebhookInfo",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -212,13 +212,13 @@
             {
               "id": "f404bab6-5dfb-42a6-991f-c6fd6f05fe15",
               "name": "api_key",
-              "value": "Заменить на API key Telegram bot | из @BotFather",
+              "value": "7117761681:AAHZQ8amKpluRfIGcQpWCm1tOJWXAYMMq9k",
               "type": "string"
             },
             {
               "id": "740e516f-160a-4ab2-82d6-a63382e3b803",
               "name": "url_webhook",
-              "value": "Заменить на вебхук из основного Workflow",
+              "value": "https://n8n.shorinlisa.ru/webhook/telegram",
               "type": "string"
             }
           ]
@@ -266,7 +266,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $json['api key'] }}/getMe",
+        "url": "=https://api.telegram.org/bot{{ $json.api_key }}/getMe",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
@@ -317,7 +317,7 @@
       "main": [
         [
           {
-            "node": "SET Wazzup Личный",
+            "node": "SET Telegram Bot 1",
             "type": "main",
             "index": 0
           }
@@ -371,15 +371,15 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "f594af60-9d33-40d1-b089-7194f95d5607",
+  "versionId": "4bd1fa61-70c9-4605-aad8-fc7a155ded28",
   "meta": {
-    "instanceId": "89117b89e6ee2e2d36a3f934f1a63e32c1c204c62e00bb625da8c39baf77c2c7"
+    "instanceId": "ab7e7ea1cf4cebe4a7745effb3ef0874d3a4e9da44907882630cca4badebaaf9"
   },
   "id": "BXDf2mlh7HDWNkw8",
   "tags": [
     {
-      "createdAt": "2025-05-05T01:58:24.104Z",
       "updatedAt": "2025-05-05T01:58:24.104Z",
+      "createdAt": "2025-05-05T01:58:24.104Z",
       "id": "TQhE2B8hgPAxRAi1",
       "name": "PrideAIBot"
     }
