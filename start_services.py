@@ -144,6 +144,21 @@ def start_local_ai_mini(profile=None, environment=None):
     print("  • Whisper")
     print("  • PostgreSQL (для Langfuse/N8N)\n")
     
+    # Сначала собираем образ n8n-ffmpeg, чтобы избежать конфликтов при параллельной сборке
+    print("🔨 Сборка образа n8n-ffmpeg...")
+    build_cmd = ["docker", "compose", "-p", "localai"]
+    if profile and profile != "none":
+        build_cmd.extend(["--profile", profile])
+    build_cmd.extend(["-f", "docker-compose.yml"])
+    if environment and environment == "public":
+        build_cmd.extend(["-f", "docker-compose.override.public.yml"])
+    build_cmd.extend(["build", "n8n"])
+    
+    try:
+        run_command(build_cmd)
+    except subprocess.CalledProcessError as e:
+        print("⚠️  Предупреждение: не удалось собрать образ заранее, будет использована автоматическая сборка")
+    
     # Список минимальных сервисов
     services = ["n8n-import", "n8n", "caddy", "redis", "qdrant", "whisper", "postgres"]
     
