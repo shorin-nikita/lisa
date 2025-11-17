@@ -98,6 +98,9 @@ services:
           memory: ${WEBUI_MEM_RESERVE:-1G}
 
   n8n-import:
+    build:
+      context: ./n8n-ffmpeg
+      dockerfile: Dockerfile
     image: n8n-ffmpeg:latest
     container_name: n8n-import
     environment:
