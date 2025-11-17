@@ -98,8 +98,22 @@ services:
           memory: ${WEBUI_MEM_RESERVE:-1G}
 
   n8n-import:
-    <<: *service-n8n
+    build:
+      context: ./n8n-ffmpeg
+      dockerfile: Dockerfile
+    image: n8n-ffmpeg:latest
     container_name: n8n-import
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=db
+      - DB_POSTGRESDB_USER=postgres
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_DATABASE=postgres
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_ENCRYPTION_KEY
+      - N8N_USER_MANAGEMENT_JWT_SECRET
+      - WEBHOOK_URL=${N8N_HOSTNAME:+https://}${N8N_HOSTNAME:-http://localhost:5678}
     entrypoint: /bin/sh
     command:
       - "-c"
