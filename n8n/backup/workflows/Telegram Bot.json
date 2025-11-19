@@ -11,7 +11,7 @@
       "typeVersion": 2,
       "position": [
         960,
-        592
+        584
       ],
       "id": "c64cee7c-0d38-4707-bc97-072ac9767860",
       "name": "Webhook",
@@ -41,7 +41,7 @@
       "name": "Анализ изображения",
       "credentials": {
         "openAiApi": {
-          "id": "2Yb2Wc9AnMMj0Prk",
+          "id": "bsZiJm5zDzmXguw7",
           "name": "OpenAi account"
         }
       }
@@ -191,7 +191,7 @@
             {
               "id": "902016f5-1274-4d55-9b69-4f88b8df381e",
               "name": "text",
-              "value": "={{ $('Analyze image').item.json.content }}",
+              "value": "={{ $json.content }}",
               "type": "string"
             },
             {
@@ -272,7 +272,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "= https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
+        "url": "=https://api.telegram.org/bot{{ $('API KEY ЗАМЕНИТЬ').item.json.telegram_bot_api_key }}/sendMessage",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -307,7 +307,7 @@
       "typeVersion": 2.6,
       "position": [
         1184,
-        592
+        584
       ],
       "id": "5f53a724-977b-4b57-bf6a-d3e28217611d",
       "name": "Логирование Webhook",
@@ -327,7 +327,7 @@
             {
               "id": "2f8cfb58-6572-4380-b4f8-4c5e8ee2c75d",
               "name": "telegram_bot_api_key",
-              "value": "7117761681:AAHZQ8amKpluRfIGcQpWCm1tOJWXAYMMq9k",
+              "value": "API KEY ЗАМЕНИТЬ",
               "type": "string"
             }
           ]
@@ -338,7 +338,7 @@
       "typeVersion": 3.4,
       "position": [
         1408,
-        592
+        584
       ],
       "id": "b424a8a0-b4fd-4496-b9be-dcc36bb34715",
       "name": "API KEY ЗАМЕНИТЬ"
@@ -353,7 +353,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1360,
+        1356,
         544
       ],
       "id": "20905431-30eb-41b3-9a51-ce050f18b52a",
@@ -385,8 +385,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2928,
-        992
+        2934,
+        988
       ],
       "id": "1ed91b5b-54f6-4f75-be5b-db2d9bddbf98",
       "name": "Стикер 5"
@@ -400,7 +400,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        912,
+        918,
         544
       ],
       "id": "8659e06f-3d57-4eb4-8410-51b8f7406477",
@@ -436,7 +436,7 @@
       "typeVersion": 2.5,
       "position": [
         3648,
-        800
+        792
       ],
       "id": "28b1c674-e2a3-4e00-869b-f8034b29b132",
       "name": "Первый чек",
@@ -478,7 +478,7 @@
       "typeVersion": 2.2,
       "position": [
         3872,
-        800
+        792
       ],
       "id": "3189aa7c-242a-4796-8429-6d0bfed10df0",
       "name": "Запись есть?"
@@ -498,7 +498,7 @@
       "typeVersion": 1,
       "position": [
         4768,
-        896
+        888
       ],
       "id": "ff0ecadd-c76e-4feb-9e81-0f34c06b81a6",
       "name": "Агрегация"
@@ -511,7 +511,7 @@
       "typeVersion": 2,
       "position": [
         4992,
-        896
+        888
       ],
       "id": "56858720-9294-4302-8207-cf3f042268e7",
       "name": "Код"
@@ -525,8 +525,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1184,
-        96
+        1152,
+        272
       ],
       "id": "ee9a1150-47a9-4b0e-9f7a-81c4c326275c",
       "name": "Создать все компоненты Telegram Pride",
@@ -546,7 +546,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5408,
+        5413,
         1152
       ],
       "id": "6d69074b-245c-4618-b6e6-ccd82a706dd7",
@@ -561,7 +561,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5536,
+        5531,
         1152
       ],
       "id": "08aafd08-23a0-4a05-8caa-36f30eb29537",
@@ -577,7 +577,7 @@
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1,
       "position": [
-        5568,
+        5576,
         1168
       ],
       "notesInFlow": false,
@@ -598,8 +598,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        4512,
-        880
+        4507,
+        868
       ],
       "id": "f9adfa71-6eec-45c5-9a09-c64d5668b4dc",
       "name": "Стикер 9"
@@ -614,8 +614,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        4064,
-        880
+        4059,
+        868
       ],
       "id": "18e245cd-814c-45b6-a027-ee1829871557",
       "name": "Стикер 10"
@@ -630,8 +630,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        4064,
-        688
+        4059,
+        676
       ],
       "id": "abd64e16-ab31-4a55-93d1-c41b24bd1127",
       "name": "Стикер 11"
@@ -646,8 +646,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3616,
-        784
+        3611,
+        772
       ],
       "id": "eca4185c-050e-447f-8272-5b142bf2e2b5",
       "name": "Стикер 12"
@@ -662,7 +662,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1152,
+        1147,
         544
       ],
       "id": "ea0b1df0-1c88-4729-b17d-abf457e8cba5",
@@ -679,7 +679,7 @@
       "typeVersion": 1,
       "position": [
         912,
-        16
+        192
       ],
       "id": "e1ef7301-9efd-46ab-a1e8-3df44a3a33bb",
       "name": "Стикер 14"
@@ -713,7 +713,7 @@
       "typeVersion": 2.5,
       "position": [
         4544,
-        896
+        888
       ],
       "id": "b60cf101-5851-48e1-b131-df648a5c2359",
       "name": "Сбор сообщений",
@@ -732,7 +732,7 @@
       "typeVersion": 1.1,
       "position": [
         4320,
-        896
+        888
       ],
       "id": "0be93afb-e8df-4fdc-9749-397d45fcf1e4",
       "name": "Ожидание",
@@ -1038,7 +1038,7 @@
       "typeVersion": 3.2,
       "position": [
         1632,
-        496
+        488
       ],
       "id": "13b0d096-cfc1-4df8-a129-848086929ecd",
       "name": "Команда?"
@@ -1285,7 +1285,7 @@
       "typeVersion": 4.2,
       "position": [
         6016,
-        880
+        872
       ],
       "id": "87d5684d-a925-4abd-ba51-c7a64f830a16",
       "name": "Удалить временное сообщение"
@@ -1332,7 +1332,7 @@
       "typeVersion": 3.2,
       "position": [
         3424,
-        768
+        760
       ],
       "id": "c8612c44-3dfc-49d5-9366-e81342395ff0",
       "name": "Объединение"
@@ -1380,8 +1380,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5184,
-        736
+        5179,
+        732
       ],
       "id": "08672d0b-1747-446f-953f-3bb0363af264",
       "name": "Стикер 15"
@@ -1396,8 +1396,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2048,
-        288
+        2043,
+        280
       ],
       "id": "4e551ec4-8eb0-4d78-8621-b0ec6c5bbe77",
       "name": "Стикер 16"
@@ -1412,8 +1412,8 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1152,
-        64
+        1120,
+        240
       ],
       "id": "e0fc1434-53e8-4c13-b2b1-68cf375bfa4e",
       "name": "Стикер 17"
@@ -1428,7 +1428,7 @@
       "typeVersion": 2.6,
       "position": [
         4096,
-        704
+        696
       ],
       "id": "eed86e11-6642-4aa3-805e-c48d796cf062",
       "name": "Запись в буфер - повтор",
@@ -1449,7 +1449,7 @@
       "typeVersion": 2.6,
       "position": [
         4096,
-        896
+        888
       ],
       "id": "0858f44d-8b7f-4f86-80db-c84446062041",
       "name": "Запись в буфер - первый",
@@ -1625,14 +1625,14 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        5440,
+        5448,
         1168
       ],
       "id": "adc5cf13-2a92-4534-aa12-8e7fa59b6d09",
       "name": "GPT 4.1 nano",
       "credentials": {
         "openAiApi": {
-          "id": "2Yb2Wc9AnMMj0Prk",
+          "id": "bsZiJm5zDzmXguw7",
           "name": "OpenAi account"
         }
       }
@@ -1643,87 +1643,13 @@
       "typeVersion": 1,
       "position": [
         960,
-        96
+        272
       ],
       "id": "fe35220a-edbc-4b37-8933-30b498fa6db6",
       "name": "Запустить один раз"
     }
   ],
-  "pinData": {
-    "Webhook": [
-      {
-        "json": {
-          "headers": {
-            "host": "n8n.shorinlisa.ru",
-            "content-length": "892",
-            "accept-encoding": "gzip, deflate",
-            "content-type": "application/json",
-            "via": "1.1 Caddy",
-            "x-forwarded-for": "91.108.5.110",
-            "x-forwarded-host": "n8n.shorinlisa.ru",
-            "x-forwarded-proto": "https"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "update_id": 604475399,
-            "message": {
-              "message_id": 6947,
-              "from": {
-                "id": 760159041,
-                "is_bot": false,
-                "first_name": "Nikita",
-                "last_name": "Shorin",
-                "username": "SHORIN1618",
-                "language_code": "ru",
-                "is_premium": true
-              },
-              "chat": {
-                "id": 760159041,
-                "first_name": "Nikita",
-                "last_name": "Shorin",
-                "username": "SHORIN1618",
-                "type": "private"
-              },
-              "date": 1763063859,
-              "forward_origin": {
-                "type": "user",
-                "sender_user": {
-                  "id": 760159041,
-                  "is_bot": false,
-                  "first_name": "Nikita",
-                  "last_name": "Shorin",
-                  "username": "SHORIN1618",
-                  "language_code": "ru",
-                  "is_premium": true
-                },
-                "date": 1762309534
-              },
-              "forward_from": {
-                "id": 760159041,
-                "is_bot": false,
-                "first_name": "Nikita",
-                "last_name": "Shorin",
-                "username": "SHORIN1618",
-                "language_code": "ru",
-                "is_premium": true
-              },
-              "forward_date": 1762309534,
-              "voice": {
-                "duration": 4,
-                "mime_type": "audio/ogg",
-                "file_id": "AwACAgIAAxkBAAIa-WkKtZ4KAAFtqJ264As9_zhBK0i3CwACYJMAAoFuUUgLH9k2eT3arDYE",
-                "file_unique_id": "AgADYJMAAoFuUUg",
-                "file_size": 19896
-              }
-            }
-          },
-          "webhookUrl": "https://n8n.shorinlisa.ru/webhook/telegaqq-123124",
-          "executionMode": "production"
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Анализ изображения": {
       "main": [
@@ -2266,13 +2192,13 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1a6be74f-dbc9-4520-913e-b0227a15bffd",
+  "versionId": "faef8a0f-b934-4238-bc7a-4ef8e18f6dcb",
   "meta": {
-    "instanceId": "ab7e7ea1cf4cebe4a7745effb3ef0874d3a4e9da44907882630cca4badebaaf9"
+    "instanceId": "0f564460b0af2e95a317a00d94a491dac5fe2cfe8859742d4f2c87a20ab9b37a"
   },
   "id": "jX8u6HDXqbtrqvSk",
   "tags": [
