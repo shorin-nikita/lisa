@@ -195,78 +195,30 @@ def get_supabase_key(key_name, min_length=32):
 
 def collect_user_inputs():
     inputs = {}
-    print(f"\n{Colors.OKCYAN}{Colors.BOLD}📋 КОНФИГУРАЦИЯ СИСТЕМЫ:{Colors.ENDC}")
-    print(f"{Colors.WARNING}💡 Введите '-' для пропуска необязательного сервиса{Colors.ENDC}\n")
-    
+    print(f"\n{Colors.OKCYAN}{Colors.BOLD}📋 КОНФИГУРАЦИЯ СИСТЕМЫ:{Colors.ENDC}\n")
+
     print(f"{Colors.OKBLUE}🔒 Email для SSL сертификатов:{Colors.ENDC}")
     print(f"{Colors.WARNING}⚠️  ВАЖНО: Используйте настоящий email адрес!{Colors.ENDC}")
     print(f"{Colors.WARNING}    Let's Encrypt не принимает фейковые email (например, test@test.test){Colors.ENDC}")
     inputs['email'] = get_validated_input(
         "Email для Let's Encrypt: ", validate_email, "Некорректный email")
-    
-    # Выбор режима установки
-    print(f"\n{Colors.OKCYAN}{Colors.BOLD}⚙️  РЕЖИМ УСТАНОВКИ:{Colors.ENDC}")
-    print(f"\n{Colors.OKBLUE}Выберите режим установки системы:{Colors.ENDC}")
-    print(f"\n  {Colors.BOLD}1. MINI{Colors.ENDC} — Минимальная конфигурация")
-    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Требования: 2 CPU, 4GB RAM, 10GB диск")
-    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Сервисы: N8N, Supabase, Caddy, Redis, Qdrant, Whisper")
-    print(f"     {Colors.OKCYAN}└─{Colors.ENDC} Подходит для: слабых серверов, тестирования")
-    print(f"\n  {Colors.BOLD}2. MAX{Colors.ENDC} — Полная конфигурация")
-    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Требования: 4+ CPU, 16GB+ RAM, 30GB диск")
-    print(f"     {Colors.OKCYAN}├─{Colors.ENDC} Сервисы: все из MINI + Ollama, WebUI, Flowise, Langfuse, Neo4j, SearXNG")
-    print(f"     {Colors.OKCYAN}└─{Colors.ENDC} Подходит для: мощных серверов, продакшена")
-    
-    while True:
-        choice = input(f"\n{Colors.BOLD}Выберите режим (1/2): {Colors.ENDC}").strip()
-        if choice == '1':
-            inputs['installation_mode'] = 'mini'
-            print(f"{Colors.OKGREEN}✅ Выбран режим: MINI{Colors.ENDC}")
-            break
-        elif choice == '2':
-            inputs['installation_mode'] = 'max'
-            print(f"{Colors.OKGREEN}✅ Выбран режим: MAX{Colors.ENDC}")
-            break
-        else:
-            print(f"{Colors.FAIL}❌ Введите 1 или 2{Colors.ENDC}")
-    
+
     print(f"\n{Colors.OKBLUE}🌐 Домен N8N (обязательно):{Colors.ENDC}")
     inputs['n8n_domain'] = get_validated_input(
         "Домен N8N (пример: n8n.site.ru): ", validate_domain, "Некорректный домен")
-    
+
+    print(f"\n{Colors.OKBLUE}🌐 Домен WebUI (обязательно):{Colors.ENDC}")
+    inputs['webui_domain'] = get_validated_input(
+        "Домен WebUI (пример: ai.site.ru): ", validate_domain, "Некорректный домен")
+
     print(f"\n{Colors.OKBLUE}🌐 Домен Supabase (обязательно):{Colors.ENDC}")
     inputs['supabase_domain'] = get_validated_input(
         "Домен Supabase (пример: db.site.ru): ", validate_domain, "Некорректный домен")
-    
-    # Опциональные домены - только для MAX режима
-    if inputs['installation_mode'] == 'max':
-        print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
-        
-        inputs['ollama_domain'] = get_validated_input(
-            "Домен Ollama (пример: ollama.site.ru) или '-': ", 
-            validate_domain, "Некорректный домен", allow_skip=True)
-        
-        inputs['webui_domain'] = get_validated_input(
-            "Домен WebUI (пример: ai.site.ru) или '-': ",
-            validate_domain, "Некорректный домен", allow_skip=True)
-        
-        inputs['flowise_domain'] = get_validated_input(
-            "Домен Flowise (пример: agents.site.ru) или '-': ",
-            validate_domain, "Некорректный домен", allow_skip=True)
-        
-        inputs['langfuse_domain'] = get_validated_input(
-            "Домен Langfuse (пример: analytics.site.ru) или '-': ",
-            validate_domain, "Некорректный домен", allow_skip=True)
-        
-        inputs['neo4j_domain'] = get_validated_input(
-            "Домен Neo4j (пример: graph.site.ru) или '-': ",
-            validate_domain, "Некорректный домен", allow_skip=True)
-    else:
-        # В MINI режиме эти домены не используются
-        inputs['ollama_domain'] = None
-        inputs['webui_domain'] = None
-        inputs['flowise_domain'] = None
-        inputs['langfuse_domain'] = None
-        inputs['neo4j_domain'] = None
+
+    print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
+    inputs['ollama_domain'] = get_validated_input(
+        "Домен Ollama (пример: ollama.site.ru) или '-': ",
+        validate_domain, "Некорректный домен", allow_skip=True)
     
     print(f"\n{Colors.OKBLUE}🔐 Ключи Supabase:{Colors.ENDC}")
     print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys{Colors.ENDC}")
@@ -324,12 +276,6 @@ def generate_all_secrets():
         'n8n_jwt_secret': generate_secret_key(32),
         'postgres_password': generate_password(32),
         'dashboard_password': generate_password(24),
-        'neo4j_password': generate_password(16),
-        'clickhouse_password': generate_password(24),
-        'minio_password': generate_password(24),
-        'langfuse_salt': generate_secret_key(32),
-        'nextauth_secret': generate_secret_key(32),
-        'encryption_key': generate_secret_key(32),
     }
 
 def create_env_file(user_inputs, generated_secrets):
@@ -347,11 +293,6 @@ def create_env_file(user_inputs, generated_secrets):
         return False
 
     env_content = f"""############
-# Installation Mode
-############
-INSTALLATION_MODE={user_inputs['installation_mode']}
-
-############
 # N8N Configuration
 ############
 N8N_ENCRYPTION_KEY={generated_secrets['n8n_encryption_key']}
@@ -369,23 +310,10 @@ DASHBOARD_PASSWORD={generated_secrets['dashboard_password']}
 POOLER_TENANT_ID=1000
 
 ############
-# Neo4j Secrets
-############
-NEO4J_AUTH=neo4j/{generated_secrets['neo4j_password']}
-
-############
-# Langfuse credentials
-############
-CLICKHOUSE_PASSWORD={generated_secrets['clickhouse_password']}
-MINIO_ROOT_PASSWORD={generated_secrets['minio_password']}
-LANGFUSE_SALT={generated_secrets['langfuse_salt']}
-NEXTAUTH_SECRET={generated_secrets['nextauth_secret']}
-ENCRYPTION_KEY={generated_secrets['encryption_key']}
-
-############
 # Caddy Config - Production domains
 ############
 N8N_HOSTNAME={user_inputs['n8n_domain']}
+WEBUI_HOSTNAME={user_inputs['webui_domain']}
 SUPABASE_HOSTNAME={user_inputs['supabase_domain']}
 LETSENCRYPT_EMAIL={user_inputs['email']}
 """
@@ -395,26 +323,6 @@ LETSENCRYPT_EMAIL={user_inputs['email']}
         env_content += f"OLLAMA_HOSTNAME={user_inputs['ollama_domain']}\n"
     else:
         env_content += f"# OLLAMA_HOSTNAME=ollama.yourdomain.com\n"
-    
-    if user_inputs.get('webui_domain'):
-        env_content += f"WEBUI_HOSTNAME={user_inputs['webui_domain']}\n"
-    else:
-        env_content += f"# WEBUI_HOSTNAME=ai.yourdomain.com\n"
-    
-    if user_inputs.get('flowise_domain'):
-        env_content += f"FLOWISE_HOSTNAME={user_inputs['flowise_domain']}\n"
-    else:
-        env_content += f"# FLOWISE_HOSTNAME=agents.yourdomain.com\n"
-    
-    if user_inputs.get('langfuse_domain'):
-        env_content += f"LANGFUSE_HOSTNAME={user_inputs['langfuse_domain']}\n"
-    else:
-        env_content += f"# LANGFUSE_HOSTNAME=analytics.yourdomain.com\n"
-    
-    if user_inputs.get('neo4j_domain'):
-        env_content += f"NEO4J_HOSTNAME={user_inputs['neo4j_domain']}\n"
-    else:
-        env_content += f"# NEO4J_HOSTNAME=graph.yourdomain.com\n"
     
     # Остальные обязательные переменные
     env_content += f"""
@@ -517,15 +425,8 @@ DOCKER_SOCKET_LOCATION=/var/run/docker.sock
         print(f"{Colors.OKGREEN}✅ Файл .env успешно создан!{Colors.ENDC}")
         
         # Статистика
-        enabled_services = []
-        if user_inputs.get('ollama_domain'): enabled_services.append("Ollama")
-        if user_inputs.get('webui_domain'): enabled_services.append("WebUI")
-        if user_inputs.get('flowise_domain'): enabled_services.append("Flowise")
-        if user_inputs.get('langfuse_domain'): enabled_services.append("Langfuse")
-        if user_inputs.get('neo4j_domain'): enabled_services.append("Neo4j")
-        
-        if enabled_services:
-            print(f"{Colors.OKGREEN}   Включены опциональные сервисы: {', '.join(enabled_services)}{Colors.ENDC}")
+        if user_inputs.get('ollama_domain'):
+            print(f"{Colors.OKGREEN}   Включен опциональный домен для Ollama{Colors.ENDC}")
         
         return True
     except Exception as e:
@@ -580,50 +481,23 @@ def main():
     input(f"\n{Colors.BOLD}Нажмите Enter для запуска установки...{Colors.ENDC}")
 
     # Шаг 6: Запуск установки
-    # Определяем режим установки для правильного вывода
-    if not env_exists:
-        installation_mode = user_inputs.get('installation_mode', 'max')
-    else:
-        installation_mode = None
-    
-    # Если используется существующий .env, определяем режим из него
-    if env_exists or installation_mode is None:
-        try:
-            with open('.env', 'r') as f:
-                for line in f:
-                    if line.startswith('INSTALLATION_MODE='):
-                        installation_mode = line.split('=')[1].strip()
-                        break
-            if installation_mode is None:
-                installation_mode = 'max'  # Fallback для старых .env
-        except:
-            installation_mode = 'max'
-    
     print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*65}")
-    print(f"  🚀 Запуск установки Л.И.С.А. (Режим: {installation_mode.upper()})")
+    print(f"  🚀 Запуск установки Л.И.С.А.")
     print(f"{'='*65}{Colors.ENDC}")
     print(f"\n{Colors.OKCYAN}📦 Что будет установлено:{Colors.ENDC}")
-    
-    # Базовые сервисы (всегда устанавливаются)
+
     print(f"  ✅ N8N + FFmpeg - автоматизация и медиа")
-    print(f"  ✅ Supabase - база данных")
-    print(f"  ✅ Caddy - SSL/TLS")
-    print(f"  ✅ Redis - кеш")
-    print(f"  ✅ Qdrant - векторная БД")
+    print(f"  ✅ Ollama - локальные LLM (Llama3, Mistral)")
+    print(f"  ✅ Open WebUI - ChatGPT-подобный интерфейс")
+    print(f"  ✅ Supabase - база данных с векторным поиском")
+    print(f"  ✅ Caddy - автоматический SSL/TLS")
+    print(f"  ✅ Redis - кеш и очереди")
+    print(f"  ✅ Qdrant - векторное хранилище")
     print(f"  ✅ Whisper - распознавание речи")
-    
-    # Дополнительные сервисы (только в MAX режиме)
-    if installation_mode == 'max':
-        print(f"  ✅ Ollama - LLM (модель llama3)")
-        print(f"  ✅ Open WebUI - интерфейс")
-        print(f"  ✅ Flowise - визуальные агенты")
-        print(f"  ✅ Langfuse - мониторинг")
-        print(f"  ✅ Neo4j - граф БД")
-        print(f"  ✅ SearXNG - поиск")
-    
+    print(f"  ✅ PostgreSQL - база для N8N")
     print()
-    
-    install_cmd = f"python3 start_services.py --profile {gpu_profile} --environment public --mode {installation_mode}"
+
+    install_cmd = f"python3 start_services.py --profile {gpu_profile} --environment public"
     print(f"{Colors.OKBLUE}🚀 Выполняется: {install_cmd}{Colors.ENDC}\n")
     
     try:
@@ -644,20 +518,15 @@ def main():
         
         print(f"\n{Colors.OKCYAN}📋 Доступ к сервисам:{Colors.ENDC}")
         
-        # Читаем домены и режим из .env для корректного отображения
+        # Читаем домены из .env для корректного отображения
         n8n_domain = None
         supabase_domain = None
         webui_domain = None
-        installed_mode = 'max'  # По умолчанию
-        
+
         try:
             with open('.env', 'r') as f:
                 for line in f:
-                    if line.startswith('INSTALLATION_MODE='):
-                        mode_value = line.split('=')[1].strip()
-                        if mode_value in ['mini', 'max']:
-                            installed_mode = mode_value
-                    elif line.startswith('N8N_HOSTNAME='):
+                    if line.startswith('N8N_HOSTNAME='):
                         domain = line.split('=')[1].strip()
                         if domain and not domain.startswith(':'):
                             n8n_domain = domain
@@ -671,28 +540,25 @@ def main():
                             webui_domain = domain
         except:
             pass
-        
+
         # Формируем URLs с IP и доменами
         if n8n_domain:
             n8n_url = f"http://{server_ip}:8001 или https://{n8n_domain}"
         else:
             n8n_url = f"http://{server_ip}:8001"
-        
+
+        if webui_domain:
+            webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
+        else:
+            webui_url = f"http://{server_ip}:8002"
+
         if supabase_domain:
             supabase_url = f"http://{server_ip}:8005 или https://{supabase_domain}"
         else:
             supabase_url = f"http://{server_ip}:8005"
-        
+
         print(f"  • N8N: {n8n_url}")
-        
-        # Open WebUI только в MAX режиме
-        if installed_mode == 'max':
-            if webui_domain:
-                webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
-            else:
-                webui_url = f"http://{server_ip}:8002"
-            print(f"  • Open WebUI: {webui_url}")
-        
+        print(f"  • Open WebUI: {webui_url}")
         print(f"  • Supabase: {supabase_url}")
         print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и активируйте план Community Edition{Colors.ENDC}\n")
         
