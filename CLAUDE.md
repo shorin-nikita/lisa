@@ -6,166 +6,153 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # Л.И.С.А. — Локальная Интеллектуальная Система Автоматизации
 
-Проект представляет собой полностью готовый Docker Compose шаблон для развертывания локальной AI и Low Code среды разработки. Включает N8N, Supabase, Ollama, Open WebUI, Whisper, FFmpeg и другие сервисы.
+Self-hosted AI platform combining N8N automation, Supabase database, Ollama LLMs, Open WebUI, Whisper speech recognition, and media processing in a unified Docker Compose stack.
 
-## Архитектура проекта
+## Core Architecture
 
-### Единая конфигурация
+### Multi-Compose Stack Pattern
 
-Система работает с единой конфигурацией, включающей все основные сервисы:
+The project uses a **unified Docker Compose architecture** with two separate compose files merged under one project:
 
-**Системные требования:**
+1. **Main stack** (`docker-compose.yml`) — AI services (N8N, Ollama, Whisper, Qdrant, etc.)
+2. **Supabase stack** (`supabase/docker/docker-compose.yml`) — Full Supabase suite included via `include:` directive
+3. **All services share**:
+   - Single Docker network: `localai_default`
+   - Single project name: `localai`
+   - Single `.env` file (copied to `supabase/docker/.env` by startup script)
 
-*Минимальные:*
-- CPU: 2 ядра
-- RAM: 8GB
-- Диск: 50GB
+**Critical**: Never use separate project names. All `docker compose` commands MUST use `-p localai` to maintain service connectivity.
 
-*Рекомендуемые:*
-- CPU: 4+ ядер
-- RAM: 8-12GB
-- Диск: 50GB
+### GPU Profile System
 
-> **Примечание:** Минимальная конфигурация (2 CPU / 8GB RAM) подходит для работы с небольшими моделями Ollama (llama3.2:1b, phi3.5:mini). Для комфортной работы с более крупными моделями рекомендуется 4+ CPU и 12GB RAM.
+Ollama uses Docker Compose profiles to support different hardware:
 
-**Включенные сервисы:**
-- N8N + FFmpeg — автоматизация и медиа-обработка
-- Ollama — локальные LLM (Llama3, Mistral)
-- Open WebUI — ChatGPT-подобный интерфейс
-- Supabase — PostgreSQL БД с векторным поиском (pgvector)
-- Caddy — автоматический SSL/TLS
-- Redis (Valkey) — кеш и очереди
-- Qdrant — векторное хранилище
-- Whisper — распознавание речи (Speech-to-Text)
-- PostgreSQL — отдельная БД для N8N
+- `cpu` → `ollama-cpu` service (no GPU acceleration)
+- `gpu-nvidia` → `ollama-gpu` service with NVIDIA device reservations
+- `gpu-amd` → `ollama-gpu-amd` service with ROCm image and `/dev/kfd`, `/dev/dri` devices
 
-### Структура Docker Compose
+Each profile has a matching init container (`ollama-pull-llama-*`) that auto-downloads `llama3` and `nomic-embed-text` models on first run.
 
-Проект использует модульную архитектуру Docker Compose:
+### Custom N8N Build
 
-- `docker-compose.yml` — основной файл с определениями всех сервисов
-- `supabase/docker/docker-compose.yml` — включен через `include:`, содержит полный стек Supabase (PostgreSQL, Kong, GoTrue, PostgREST, Storage, etc.)
-- `docker-compose.override.public.yml` — оверрайды для публичного доступа (с доменами)
-- `docker-compose.override.private.yml` — оверрайды для локального доступа
+N8N uses a **custom Dockerfile** (`n8n-ffmpeg/Dockerfile`) that adds FFmpeg to the official image:
+- Base: `n8nio/n8n:latest`
+- Adds: FFmpeg + ffprobe via `apk add`
+- Purpose: Enable media processing in N8N Execute Command nodes
 
-Все контейнеры работают в единой Docker сети `localai_default` и используют общий project name `localai`.
+**Important**: This image must be rebuilt when N8N updates. Use `docker compose -p localai build n8n` to rebuild.
 
-### Профили Docker Compose
+## Development Commands
 
-Ollama запускается через профили в зависимости от доступного GPU:
-- `cpu` — CPU-only версия Ollama
-- `gpu-nvidia` — версия с поддержкой NVIDIA GPU
-- `gpu-amd` — версия с поддержкой AMD ROCm GPU
-
-### Кастомный образ N8N
-
-N8N использует кастомный Docker образ, собираемый из `n8n-ffmpeg/Dockerfile`:
-- Базовый образ: `n8nio/n8n:latest`
-- Добавлен FFmpeg для обработки медиа-файлов внутри workflows
-- Образ собирается автоматически при первом запуске
-
-## Команды управления системой
-
-### Первая установка
+### Installation
 
 ```bash
-# Запустить интерактивный установщик
+# First-time setup (interactive)
 python3 CTAPT.py
 ```
 
-Установщик автоматически:
-- Определяет доступный GPU (NVIDIA/AMD/CPU)
-- Генерирует все секретные ключи
-- Создаёт файл `.env` с конфигурацией
-- Настраивает firewall (порты 80, 443, 22)
-- Создаёт директорию `shared/` с правильными правами
-- Клонирует репозиторий Supabase через sparse checkout
-- Запускает все сервисы
+This script:
+1. Detects GPU (NVIDIA/AMD/CPU)
+2. Validates domains and email for Let's Encrypt
+3. Generates all secrets (N8N encryption keys, Supabase JWT, database passwords)
+4. Creates `.env` file with configuration
+5. Configures UFW firewall (ports 22, 80, 443) — **CRITICAL**: SSH rule added BEFORE enabling firewall
+6. Calls `start_services.py` to launch stack
 
-### Обновление системы
+### Update System
 
 ```bash
-# Обновить Л.И.С.А. до последней версии
+# Update to latest version
 python3 O6HOBA.py
 ```
 
-Скрипт обновления:
-- Определяет текущий профиль GPU и окружение
-- Создаёт резервную копию (`.env`, `n8n/backup`, `neo4j/data`, `shared/`)
-- Останавливает сервисы
-- Получает обновления из Git
-- Обновляет Docker образы
-- Пересобирает n8n-ffmpeg образ
-- Настраивает лимиты ресурсов в `.env` на основе доступных CPU/RAM
-- Перезапускает систему
+Update process:
+1. Detect current GPU profile and environment from `.env`
+2. Create timestamped backup tarball (`.env`, `n8n/backup`, `neo4j/data`, `shared/`)
+3. Stop all services with `docker compose -p localai down`
+4. Pull Git updates from `main` branch
+5. Calculate and update resource limits in `.env` based on detected CPU/RAM
+6. Pull new Docker images with `docker compose pull --ignore-buildable`
+7. Rebuild custom images (`n8n-ffmpeg`)
+8. Restart services via `start_services.py`
 
-### Запуск сервисов вручную
+### Manual Service Control
 
 ```bash
-# Запустить сервисы с указанием профиля
+# Start with specific profile and environment
 python3 start_services.py --profile cpu --environment public
 
-# Параметры:
-# --profile: cpu | gpu-nvidia | gpu-amd | none
-# --environment: private | public
+# Options:
+#   --profile: cpu | gpu-nvidia | gpu-amd | none
+#   --environment: private | public
 ```
 
-Скрипт `start_services.py`:
-1. Валидирует `.env` файл (проверяет обязательные переменные)
-2. Клонирует репозиторий Supabase (если отсутствует)
-3. Создаёт директорию `shared/` с правами 777
-4. Копирует `.env` в `supabase/docker/.env`
-5. Останавливает существующие контейнеры
-6. Запускает Supabase стек
-7. Ожидает 30 секунд инициализации Supabase
-8. Запускает AI стек
-9. Ожидает готовности PostgreSQL контейнера (healthcheck)
+**Startup sequence** (`start_services.py`):
+1. Validate `.env` has required variables (`POSTGRES_PASSWORD`, `N8N_ENCRYPTION_KEY`, `JWT_SECRET`)
+2. Clone Supabase repo with sparse checkout (only `docker/` directory) if missing
+3. Create `shared/` directory with mode 777
+4. Copy `.env` → `supabase/docker/.env`
+5. Stop existing containers: `docker compose -p localai down`
+6. Start Supabase stack: `docker compose -p localai -f supabase/docker/docker-compose.yml up -d`
+7. Wait 30 seconds for Supabase initialization
+8. Start AI stack: `docker compose -p localai --profile <profile> -f docker-compose.yml [-f docker-compose.override.<env>.yml] up -d`
+9. Wait for PostgreSQL healthcheck to become `healthy` (max 120s)
 
-### Управление Docker Compose
+### Docker Compose Commands
 
 ```bash
-# Просмотр статуса всех контейнеров
+# View all running containers
 docker ps
 
-# Логи всех сервисов проекта
+# Logs for entire project
 docker compose -p localai logs -f
 
-# Логи конкретного сервиса
+# Logs for specific service
 docker logs n8n -f
 docker logs whisper -f
 docker logs ollama -f
 
-# Остановка всех сервисов
+# Stop all services (preserves volumes/data)
 docker compose -p localai down
 
-# Остановка с удалением volumes (УДАЛИТ ВСЕ ДАННЫЕ!)
+# Stop and DELETE all data (destructive!)
 docker compose -p localai down -v
 
-# Пересборка конкретного образа
+# Rebuild specific service
 docker compose -p localai build n8n
 docker compose -p localai up -d n8n
 
-# Мониторинг ресурсов
+# Resource monitoring
 docker stats
+
+# Important: ALWAYS use -p localai to target the correct project
 ```
 
-## Важные детали реализации
+## Implementation Details
 
-### Файл .env
+### Environment Configuration
 
-Генерируется автоматически через `CTAPT.py`. Содержит:
-- Секретные ключи N8N (`N8N_ENCRYPTION_KEY`, `N8N_USER_MANAGEMENT_JWT_SECRET`)
-- Секретные ключи Supabase (`JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY`)
-- Пароли для PostgreSQL
-- Домены для сервисов (`N8N_HOSTNAME`, `WEBUI_HOSTNAME`, `SUPABASE_HOSTNAME`)
-- Email для Let's Encrypt (`LETSENCRYPT_EMAIL`)
-- Лимиты ресурсов (`OLLAMA_CPU_LIMIT`, `POSTGRES_MEM_LIMIT`, etc.)
+The `.env` file is generated by `CTAPT.py` and contains:
 
-**ВАЖНО**: Используйте настоящий email для `LETSENCRYPT_EMAIL` — Let's Encrypt не принимает фейковые адреса.
+**Generated secrets** (via `secrets` module):
+- `N8N_ENCRYPTION_KEY`, `N8N_USER_MANAGEMENT_JWT_SECRET` (32-byte hex)
+- `POSTGRES_PASSWORD`, `DASHBOARD_PASSWORD` (alphanumeric only, no special chars to avoid URL encoding issues)
+- `SECRET_KEY_BASE`, `VAULT_ENC_KEY` (for Supabase)
+- `LOGFLARE_PUBLIC_ACCESS_TOKEN`, `LOGFLARE_PRIVATE_ACCESS_TOKEN`
 
-### Supabase Integration
+**User-provided values**:
+- `JWT_SECRET`, `ANON_KEY`, `SERVICE_ROLE_KEY` — Supabase auth keys (generate at https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys)
+- `N8N_HOSTNAME`, `WEBUI_HOSTNAME`, `SUPABASE_HOSTNAME` — Domains for HTTPS access
+- `LETSENCRYPT_EMAIL` — **Must be real email**, Let's Encrypt rejects fake addresses like `test@test.test`
 
-Supabase клонируется как подмодуль через sparse checkout:
+**Resource limits** (auto-calculated by `O6HOBA.py`):
+- Format: `{SERVICE}_CPU_LIMIT`, `{SERVICE}_MEM_LIMIT`, `{SERVICE}_CPU_RESERVE`, `{SERVICE}_MEM_RESERVE`
+- Default allocation: Ollama 40%, PostgreSQL 20%, N8N 15%, Qdrant/WebUI 10%
+
+### Supabase Sparse Checkout
+
+Supabase is cloned with Git sparse checkout to download only the `docker/` directory (~200MB instead of 2GB):
+
 ```bash
 git clone --filter=blob:none --no-checkout https://github.com/supabase/supabase.git
 cd supabase
@@ -174,26 +161,15 @@ git sparse-checkout set docker
 git checkout master
 ```
 
-Это позволяет получить только директорию `docker/` из огромного репозитория Supabase (~200MB вместо 2GB).
-
-Основной `docker-compose.yml` включает Supabase через:
+The main compose file includes it via:
 ```yaml
 include:
   - ./supabase/docker/docker-compose.yml
 ```
 
-### Shared директория
+### N8N Auto-Import Pattern
 
-Директория `shared/` используется для обмена файлами между контейнерами:
-- N8N монтирует её как `/data/shared`
-- Используется для временных файлов при обработке медиа через FFmpeg
-- Должна иметь права 777 для записи из всех контейнеров
-
-Создаётся автоматически скриптами `CTAPT.py` и `start_services.py`.
-
-### N8N Workflows автоимпорт
-
-При первом запуске контейнер `n8n-import` автоматически импортирует все workflows и credentials из `n8n/backup/`:
+N8N workflows/credentials are imported on first launch using a **one-shot init container**:
 
 ```yaml
 n8n-import:
@@ -204,178 +180,148 @@ n8n-import:
     - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
   volumes:
     - ./n8n/backup:/backup
+
+n8n:
+  depends_on:
+    n8n-import:
+      condition: service_completed_successfully
 ```
 
-Основной контейнер `n8n` зависит от успешного завершения импорта:
-```yaml
-depends_on:
-  n8n-import:
-    condition: service_completed_successfully
-```
+The main N8N container waits for successful import completion before starting.
 
-### Whisper API
+### Shared Directory
 
-Whisper предоставляет OpenAI-совместимый API для распознавания речи:
-- Внутренний URL: `http://whisper:8000`
-- Endpoint: `POST /v1/audio/transcriptions`
-- Модели: `tiny`, `base` (по умолчанию), `small`
-- Формат: multipart/form-data с полями `file` и `model`
+The `shared/` directory enables file exchange between containers:
+- N8N mounts it as `/data/shared`
+- Used for temporary media files during FFmpeg processing
+- **Must have mode 777** for write access from all containers
+- Auto-created by `CTAPT.py` and `start_services.py`
 
-Рекомендуется использовать модель `base` для CPU — оптимальный баланс скорости и точности.
+### Caddy Dual-Mode Routing
 
-### Caddy и SSL
+Caddy supports **simultaneous domain and localhost access** via environment variable syntax:
 
-Caddy автоматически получает Let's Encrypt сертификаты для доменов:
-- Использует email из переменной `LETSENCRYPT_EMAIL`
-- Поддерживает одновременный доступ по домену (HTTPS) и localhost:порт (HTTP)
-- Переменные окружения могут содержать либо домен (`n8n.site.ru`), либо порт (`:8001`)
-
-Пример из Caddyfile:
-```
+```caddyfile
 {$N8N_HOSTNAME}, :8001 {
     reverse_proxy n8n:5678
 }
 ```
 
-Если `N8N_HOSTNAME=n8n.site.ru`, Caddy настроит HTTPS с автоматическим сертификатом.
-Если `N8N_HOSTNAME=:8001`, Caddy настроит HTTP на порту 8001.
+- If `N8N_HOSTNAME=n8n.example.com` → HTTPS with Let's Encrypt cert
+- If `N8N_HOSTNAME=:8001` → HTTP on localhost:8001
+- Both modes can coexist by listing both (domain AND port)
 
-### Firewall настройка
+### Service Internal URLs
 
-`CTAPT.py` автоматически настраивает UFW:
-1. **СНАЧАЛА** добавляет правила для портов (22, 80, 443)
-2. **ТОЛЬКО ПОТОМ** включает firewall
-3. Проверяет успешность добавления SSH правила перед включением
+**Whisper** (OpenAI-compatible speech-to-text):
+- URL: `http://whisper:8000`
+- Endpoint: `POST /v1/audio/transcriptions`
+- Body: `multipart/form-data` with `file` (binary) and `model` (`tiny`/`base`/`small`)
+- Recommended: `base` model for CPU (best speed/accuracy balance)
 
-Это критически важно для удалённых серверов — предотвращает блокировку SSH доступа.
+**Other key services**:
+- Ollama: `http://ollama:11434`
+- Qdrant: `http://qdrant:6333`
+- Supabase API: `http://kong:8000` (via Kong gateway)
+- PostgreSQL (N8N): `postgres:5432`
+- PostgreSQL (Supabase): `db:5432`
 
-### PostgreSQL healthcheck
+### PostgreSQL Healthcheck Wait
 
-Многие сервисы (N8N) зависят от PostgreSQL. Скрипт `start_services.py` ожидает готовности:
+`start_services.py` waits for PostgreSQL healthcheck before completing:
 
 ```python
 def wait_for_postgres_healthy(timeout=120):
-    # Проверяет статус healthcheck контейнера
     result = subprocess.run(
         ["docker", "inspect", "--format", "{{.State.Health.Status}}", "localai-postgres-1"],
         capture_output=True, text=True
     )
-    status = result.stdout.strip()
-    return status == "healthy"
+    return result.stdout.strip() == "healthy"
 ```
 
-Это предотвращает ошибки подключения при параллельном запуске сервисов.
+This prevents N8N connection failures during parallel startup.
 
-### Resource Limits
+## Pre-built N8N Workflows
 
-Docker Compose использует resource limits для предотвращения захвата всех ресурсов:
-- Ollama: 40% CPU и RAM (минимум 2 CPU, 4GB RAM)
-- PostgreSQL: 20% CPU и RAM
-- N8N: 15% CPU и RAM
-- Qdrant: 10% CPU и RAM
+Located in `n8n/backup/workflows/`, auto-imported on first launch:
 
-Лимиты автоматически рассчитываются в `O6HOBA.py` на основе доступных ресурсов системы.
+- **Telegram Bot.json** — Full-featured bot with voice transcription, image analysis, analytics commands
+- **HTTP Handle.json** — Webhook configuration helper
+- **Конвертация WebM → OGG + Транскрибация.json** — Media conversion with Whisper transcription
+- **V1_Local_RAG_AI_Agent.json** — Basic RAG with Ollama
+- **V2_Local_Supabase_RAG_AI_Agent.json** — RAG with Supabase vector store (pgvector)
+- **V3_Local_Agentic_RAG_AI_Agent.json** — Advanced agentic RAG
 
-## Готовые N8N workflows
+## Common Issues
 
-Все workflows находятся в `n8n/backup/workflows/`:
+### FFmpeg not found in N8N
 
-- **Telegram Bot.json** — полнофункциональный Telegram бот с транскрибацией голосовых, анализом изображений, аналитическими командами
-- **HTTP Handle.json** — вспомогательный workflow для настройки webhooks
-- **Конвертация WebM → OGG + Транскрибация.json** — автоматическая конвертация видео в аудио с экстремальным сжатием
-- **V1_Local_RAG_AI_Agent.json** — базовый RAG с Ollama
-- **V2_Local_Supabase_RAG_AI_Agent.json** — RAG с векторной БД Supabase
-- **V3_Local_Agentic_RAG_AI_Agent.json** — продвинутый агентный RAG
+**Problem**: `ffmpeg: not found` in Execute Command node
 
-Импортируются автоматически при первом запуске через контейнер `n8n-import`.
-
-## Решение типичных проблем
-
-### FFmpeg не найден в N8N
-
-Проблема: `ffmpeg: not found` при выполнении команды в N8N
-
-Решение:
+**Solution**: Rebuild the custom N8N image:
 ```bash
-# Проверить, что используется кастомный образ
-docker inspect n8n | grep n8n-ffmpeg
-
-# Пересобрать образ
+docker inspect n8n | grep n8n-ffmpeg  # Verify custom image is in use
 docker compose -p localai build n8n
 docker compose -p localai up -d n8n
 ```
 
-### PostgreSQL не запускается
+### PostgreSQL unhealthy
 
-Проблема: `container localai-postgres-1 is unhealthy`
+**Problem**: `container localai-postgres-1 is unhealthy`
 
-Решение:
+**Solution**:
 ```bash
-# Проверить логи
-docker logs localai-postgres-1
-
-# Убедиться в правильной версии PostgreSQL
-grep POSTGRES_VERSION .env
-
-# Очистить volumes и переустановить
-docker compose -p localai down -v
-python3 CTAPT.py
+docker logs localai-postgres-1  # Check logs
+grep POSTGRES_VERSION .env      # Verify version is 16
+docker compose -p localai down -v && python3 CTAPT.py  # Nuclear option: wipe and reinstall
 ```
 
-### Permission denied в shared/
+### Permission denied in shared/
 
-Проблема: N8N не может записать файлы в `/data/shared`
+**Problem**: N8N cannot write to `/data/shared`
 
-Решение:
-```bash
-chmod 777 shared/
-```
+**Solution**: `chmod 777 shared/` (auto-fixed by `start_services.py`)
 
-Это исправляется автоматически при запуске `start_services.py`.
+### HTTPS not working
 
-### HTTPS не работает
+**Problem**: `ERR_SSL_PROTOCOL_ERROR` on domain access
 
-Проблема: `ERR_SSL_PROTOCOL_ERROR` при доступе к домену
+**Checklist**:
+1. `.env` has real email (not `test@test.test`)
+2. DNS A-records point to server IP
+3. Ports 80/443 open in firewall
+4. Check Caddy logs: `docker logs caddy -f`
 
-Проверить:
-1. Email в `.env` должен быть настоящим (не `test@test.test`)
-2. DNS A-записи должны указывать на IP сервера
-3. Порты 80 и 443 должны быть открыты в firewall
-4. Логи Caddy: `docker logs caddy -f`
+### Whisper crashes on large files
 
-### Whisper падает на больших файлах
+**Problem**: `socket hang up` or `ECONNRESET` during transcription
 
-Проблема: `socket hang up` или `ECONNRESET` при транскрибации
+**Solutions**:
+- Use `base` model instead of `medium`/`large` on CPU
+- Split files into <25MB chunks
+- Increase container memory limits
 
-Решение:
-- Используйте модель `base` вместо `medium`/`large` на CPU
-- Разбивайте большие файлы на части (до 25MB)
-- Убедитесь, что у контейнера достаточно памяти
+## Access Ports
 
-## Порты сервисов
+**External (via Caddy)**:
+- N8N: http://localhost:8001 or https://{N8N_HOSTNAME}
+- Open WebUI: http://localhost:8002 or https://{WEBUI_HOSTNAME}
+- Supabase: http://localhost:8005 or https://{SUPABASE_HOSTNAME}
 
-### Локальный доступ (HTTP)
+**Internal (Docker network)**:
+- N8N: `n8n:5678`
+- Ollama: `ollama:11434`
+- Whisper: `whisper:8000`
+- Qdrant: `qdrant:6333`
+- PostgreSQL (N8N): `postgres:5432`
+- PostgreSQL (Supabase): `db:5432`
+- Kong (Supabase API): `kong:8000`
 
-- N8N: http://localhost:8001
-- Open WebUI: http://localhost:8002
-- Supabase: http://localhost:8005
+## Key Architectural Patterns
 
-### Внутренние порты (Docker сеть)
-
-- N8N: n8n:5678
-- Ollama: ollama:11434
-- Open WebUI: open-webui:8080
-- Whisper: whisper:8000
-- Qdrant: qdrant:6333
-- PostgreSQL (Supabase): db:5432
-- PostgreSQL (N8N): postgres:5432
-- Redis: redis:6379
-- Kong (Supabase API): kong:8000
-
-## Полезные ссылки
-
-- [N8N документация](https://docs.n8n.io/)
-- [Supabase self-hosting](https://supabase.com/docs/guides/self-hosting/docker)
-- [Whisper faster-whisper-server](https://github.com/fedirz/faster-whisper-server)
-- [Ollama модели](https://ollama.com/library)
-- [FFmpeg документация](https://ffmpeg.org/documentation.html)
+1. **Init Container Pattern**: Used for N8N workflow import and Ollama model downloads
+2. **Sparse Git Checkout**: Supabase repo cloned with only `docker/` directory to save bandwidth
+3. **Healthcheck Dependencies**: PostgreSQL healthcheck prevents race conditions during startup
+4. **Dual-Environment Support**: Same compose files work for private (localhost) and public (domain) deployments
+5. **Resource Limits**: Auto-calculated from system specs, stored in `.env`, applied via Docker deploy resources
+6. **Custom Image Builds**: N8N image extended with FFmpeg, requires manual rebuild on upstream updates
