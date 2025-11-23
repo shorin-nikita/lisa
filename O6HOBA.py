@@ -156,7 +156,7 @@ def create_backup():
 def pull_git_updates():
     """Получение обновлений из Git"""
     print(f"\n{Colors.OKBLUE}🔄 Получение обновлений из Git...{Colors.ENDC}")
-    
+
     # Проверка наличия изменений
     status = run_command("git status --porcelain", capture_output=True)
     if status:
@@ -166,14 +166,39 @@ def pull_git_updates():
         if response != 'y':
             print(f"{Colors.WARNING}Обновление отменено{Colors.ENDC}")
             return False
-    
-    # Pull изменений
-    if run_command("git pull origin main"):
-        print(f"{Colors.OKGREEN}✅ Git обновления получены{Colors.ENDC}")
-        return True
-    else:
-        print(f"{Colors.FAIL}❌ Не удалось получить обновления{Colors.ENDC}")
+
+    # Сохранение .env файла перед обновлением
+    env_backup = None
+    if os.path.exists('.env'):
+        print(f"{Colors.OKBLUE}📦 Сохранение .env файла...{Colors.ENDC}")
+        try:
+            with open('.env', 'r') as f:
+                env_backup = f.read()
+        except Exception as e:
+            print(f"{Colors.WARNING}⚠️  Не удалось сохранить .env: {e}{Colors.ENDC}")
+
+    # Получение обновлений из Git (надежный метод)
+    if not run_command("git fetch origin main", check=False):
+        print(f"{Colors.FAIL}❌ Не удалось получить обновления из Git{Colors.ENDC}")
         return False
+
+    if not run_command("git reset --hard origin/main", check=False):
+        print(f"{Colors.FAIL}❌ Не удалось применить обновления{Colors.ENDC}")
+        return False
+
+    # Восстановление .env файла
+    if env_backup:
+        print(f"{Colors.OKBLUE}📦 Восстановление .env файла...{Colors.ENDC}")
+        try:
+            with open('.env', 'w') as f:
+                f.write(env_backup)
+            print(f"{Colors.OKGREEN}✅ Файл .env восстановлен{Colors.ENDC}")
+        except Exception as e:
+            print(f"{Colors.FAIL}❌ Не удалось восстановить .env: {e}{Colors.ENDC}")
+            return False
+
+    print(f"{Colors.OKGREEN}✅ Git обновления получены{Colors.ENDC}")
+    return True
 
 def stop_services(profile):
     """Остановка сервисов"""
