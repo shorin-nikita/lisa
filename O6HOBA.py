@@ -338,10 +338,65 @@ def restart_services(profile, environment):
         print(f"{Colors.FAIL}❌ Не удалось запустить сервисы{Colors.ENDC}")
         return False
 
+def ensure_ollama_models():
+    """Проверка и загрузка необходимых моделей Ollama"""
+    print(f"\n{Colors.OKBLUE}🦙 Проверка моделей Ollama...{Colors.ENDC}")
+
+    import time
+
+    # Ждём запуска Ollama контейнера
+    max_wait = 60
+    waited = 0
+    while waited < max_wait:
+        result = run_command("docker ps --filter 'name=ollama' --format '{{.Names}}'",
+                            capture_output=True, check=False)
+        if result and 'ollama' in str(result):
+            break
+        time.sleep(5)
+        waited += 5
+        print(f"{Colors.WARNING}   Ожидание запуска Ollama... ({waited}s){Colors.ENDC}")
+
+    if waited >= max_wait:
+        print(f"{Colors.WARNING}⚠️  Ollama контейнер не запущен, пропускаем проверку моделей{Colors.ENDC}")
+        return
+
+    # Даём Ollama время на инициализацию
+    time.sleep(5)
+
+    # Список необходимых моделей
+    required_models = ["gemma3:1b", "nomic-embed-text"]
+
+    # Получаем список установленных моделей
+    installed = run_command("docker exec ollama ollama list", capture_output=True, check=False)
+    installed_str = str(installed) if installed else ""
+
+    for model in required_models:
+        # Проверяем наличие модели (gemma3:1b может отображаться как gemma3:1b или gemma3 1b)
+        model_check = model.replace(":", " ").split()[0]  # берём базовое имя
+        if model_check in installed_str or model in installed_str:
+            print(f"{Colors.OKGREEN}✅ Модель {model} уже установлена{Colors.ENDC}")
+        else:
+            print(f"{Colors.OKCYAN}📥 Загрузка модели {model}...{Colors.ENDC}")
+            # Используем увеличенный таймаут для загрузки модели
+            try:
+                result = subprocess.run(
+                    f"docker exec ollama ollama pull {model}",
+                    shell=True, timeout=600, check=False
+                )
+                if result.returncode == 0:
+                    print(f"{Colors.OKGREEN}✅ Модель {model} успешно загружена{Colors.ENDC}")
+                else:
+                    print(f"{Colors.WARNING}⚠️  Не удалось загрузить {model}{Colors.ENDC}")
+            except subprocess.TimeoutExpired:
+                print(f"{Colors.WARNING}⚠️  Таймаут загрузки {model} (можно загрузить позже вручную){Colors.ENDC}")
+            except Exception as e:
+                print(f"{Colors.WARNING}⚠️  Ошибка загрузки {model}: {e}{Colors.ENDC}")
+
+
 def verify_health():
     """Проверка здоровья сервисов"""
     print(f"\n{Colors.OKBLUE}🏥 Проверка здоровья сервисов...{Colors.ENDC}")
-    
+
     import time
     time.sleep(10)  # Даем время на запуск
     
@@ -471,7 +526,10 @@ def main():
         print(f"\n{Colors.FAIL}❌ Не удалось перезапустить сервисы{Colors.ENDC}")
         sys.exit(1)
 
-    # Шаг 8: Проверка здоровья
+    # Шаг 8: Проверка и загрузка моделей Ollama
+    ensure_ollama_models()
+
+    # Шаг 9: Проверка здоровья
     verify_health()
 
     # Финальное сообщение
