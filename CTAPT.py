@@ -204,12 +204,12 @@ def collect_user_inputs():
         "Домен N8N (пример: n8n.site.ru) или '-': ",
         validate_domain, "Некорректный домен", allow_skip=True)
 
-    inputs['webui_domain'] = get_validated_input(
-        "Домен WebUI (пример: ai.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
-
     inputs['supabase_domain'] = get_validated_input(
         "Домен Supabase (пример: db.site.ru) или '-': ",
+        validate_domain, "Некорректный домен", allow_skip=True)
+
+    inputs['webui_domain'] = get_validated_input(
+        "Домен WebUI (пример: ai.site.ru) или '-': ",
         validate_domain, "Некорректный домен", allow_skip=True)
 
     print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
