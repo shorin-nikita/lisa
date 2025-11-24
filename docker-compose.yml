@@ -46,15 +46,15 @@ x-ollama: &service-ollama
 
 x-init-ollama: &init-ollama
   image: ollama/ollama:latest
-  container_name: ollama-pull-vikhr
+  container_name: ollama-pull-models
   volumes:
     - ollama_storage:/root/.ollama
   entrypoint: /bin/sh
   command:
     - "-c"
-    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull lakomoor/vikhr-llama-3.2-1b-instruct; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
-    # Vikhr-Llama-3.2-1B-Instruct - компактная модель (<3GB), оптимизированная для русского языка
-    # Рекомендуемая температура: 0.3
+    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull gemma3:1b; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
+    # Gemma 3 1B - компактная модель от Google (~1GB)
+    # nomic-embed-text - модель для векторных эмбеддингов
 
 services:
   open-webui:

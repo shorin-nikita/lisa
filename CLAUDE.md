@@ -31,7 +31,7 @@ Ollama uses Docker Compose profiles to support different hardware:
 - `gpu-nvidia` → `ollama-gpu` service with NVIDIA device reservations
 - `gpu-amd` → `ollama-gpu-amd` service with ROCm image and `/dev/kfd`, `/dev/dri` devices
 
-Each profile has a matching init container (`ollama-pull-vikhr`) that auto-downloads `lakomoor/vikhr-llama-3.2-1b-instruct` (компактная модель для русского языка, <3GB) and `nomic-embed-text` models on first run.
+Each profile has a matching init container (`ollama-pull-models`) that auto-downloads `gemma3:1b` (компактная модель от Google, ~1GB) and `nomic-embed-text` models on first run.
 
 ### Custom N8N Build
 
