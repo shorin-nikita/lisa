@@ -17,6 +17,7 @@ x-n8n: &service-n8n
     context: ./n8n-ffmpeg
     dockerfile: Dockerfile
   image: n8n-ffmpeg:latest
+  pull_policy: never
   environment:
     - DB_TYPE=postgresdb
     - DB_POSTGRESDB_HOST=db

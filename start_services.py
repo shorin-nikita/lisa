@@ -197,6 +197,26 @@ def start_supabase(environment=None):
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
     print("🚀 Запуск системы...")
+    print("\n📦 Собираем образы (если нужно)...\n")
+    
+    # Сначала собираем образы, которые требуют сборки
+    build_cmd = ["docker", "compose", "-p", "localai"]
+    if profile and profile != "none":
+        build_cmd.extend(["--profile", profile])
+    build_cmd.extend(["-f", "docker-compose.yml"])
+    if environment and environment == "private":
+        build_cmd.extend(["-f", "docker-compose.override.private.yml"])
+    if environment and environment == "public":
+        build_cmd.extend(["-f", "docker-compose.override.public.yml"])
+    build_cmd.extend(["build", "--pull=never"])
+    
+    try:
+        run_command(build_cmd)
+    except subprocess.CalledProcessError as e:
+        # Если сборка не удалась, но образ уже существует, продолжаем
+        print(f"⚠️  Предупреждение при сборке образов (код: {e.returncode})")
+        print(f"   Продолжаем запуск контейнеров...\n")
+    
     print("\n📦 Запускаем сервисы...\n")
     
     cmd = ["docker", "compose", "-p", "localai"]
@@ -207,7 +227,7 @@ def start_local_ai(profile=None, environment=None):
         cmd.extend(["-f", "docker-compose.override.private.yml"])
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.yml"])
-    cmd.extend(["up", "-d"])
+    cmd.extend(["up", "-d", "--pull=never"])
     
     try:
         run_command(cmd)
