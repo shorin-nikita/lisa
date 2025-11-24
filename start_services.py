@@ -197,8 +197,27 @@ def start_supabase(environment=None):
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
     print("🚀 Запуск системы...")
+
+    # Загружаем базовые образы (postgres, redis, whisper и др.), игнорируя локально-собираемые
+    print("\n📥 Загружаем базовые образы Docker...\n")
+    pull_cmd = ["docker", "compose", "-p", "localai"]
+    if profile and profile != "none":
+        pull_cmd.extend(["--profile", profile])
+    pull_cmd.extend(["-f", "docker-compose.yml"])
+    if environment and environment == "private":
+        pull_cmd.extend(["-f", "docker-compose.override.private.yml"])
+    if environment and environment == "public":
+        pull_cmd.extend(["-f", "docker-compose.override.public.yml"])
+    pull_cmd.extend(["pull", "--ignore-buildable"])
+
+    try:
+        run_command(pull_cmd)
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  Некоторые образы не загружены (код: {e.returncode}), продолжаем...")
+
+    # Собираем кастомные образы (n8n-ffmpeg)
     print("\n📦 Собираем образы (если нужно)...\n")
-    
+
     # Сначала собираем образы, которые требуют сборки
     build_cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
@@ -208,7 +227,7 @@ def start_local_ai(profile=None, environment=None):
         build_cmd.extend(["-f", "docker-compose.override.private.yml"])
     if environment and environment == "public":
         build_cmd.extend(["-f", "docker-compose.override.public.yml"])
-    build_cmd.extend(["build", "--pull=never"])
+    build_cmd.extend(["build"])
     
     try:
         run_command(build_cmd)
@@ -227,7 +246,7 @@ def start_local_ai(profile=None, environment=None):
         cmd.extend(["-f", "docker-compose.override.private.yml"])
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.yml"])
-    cmd.extend(["up", "-d", "--pull=never"])
+    cmd.extend(["up", "-d", "--pull", "never"])
     
     try:
         run_command(cmd)
