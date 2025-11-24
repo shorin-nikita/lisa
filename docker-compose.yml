@@ -46,17 +46,15 @@ x-ollama: &service-ollama
 
 x-init-ollama: &init-ollama
   image: ollama/ollama:latest
-  container_name: ollama-pull-llama
+  container_name: ollama-pull-vikhr
   volumes:
     - ollama_storage:/root/.ollama
   entrypoint: /bin/sh
   command:
     - "-c"
-    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull llama3; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
-    # For a larger context length version of the model, run these commands:
-    # echo "FROM llama3\n\nPARAMETER num_ctx 8096" > Modelfile
-    # ollama create llama3-8k -f ./Modelfile
-    # Change the name of the LLM and num_ctx as you see fit.
+    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull lakomoor/vikhr-llama-3.2-1b-instruct; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
+    # Vikhr-Llama-3.2-1B-Instruct - компактная модель (<3GB), оптимизированная для русского языка
+    # Рекомендуемая температура: 0.3
 
 services:
   open-webui:

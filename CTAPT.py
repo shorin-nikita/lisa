@@ -482,10 +482,8 @@ def main():
         
         if cpu_count < 4 or mem_gb < 12:
             print(f"\n{Colors.WARNING}⚠️  Обнаружена минимальная конфигурация ({cpu_count} CPU, {mem_gb:.1f}GB RAM){Colors.ENDC}")
-            print(f"{Colors.WARNING}   Система будет работать, но для лучшей производительности Ollama рекомендуется:{Colors.ENDC}")
-            print(f"{Colors.WARNING}   - 4+ CPU ядер{Colors.ENDC}")
-            print(f"{Colors.WARNING}   - 12GB+ RAM{Colors.ENDC}")
-            print(f"{Colors.WARNING}   Для llama3:latest рекомендуется использовать более мощную конфигурацию.{Colors.ENDC}")
+            print(f"{Colors.OKGREEN}   Vikhr-Llama-3.2-1B-Instruct (<3GB) подходит для данной конфигурации.{Colors.ENDC}")
+            print(f"{Colors.WARNING}   Для более крупных моделей рекомендуется: 4+ CPU, 12GB+ RAM{Colors.ENDC}")
             print(f"{Colors.OKGREEN}   Установка продолжится с автоматической настройкой ресурсов...{Colors.ENDC}\n")
     except Exception as e:
         # Если не удалось определить ресурсы, просто продолжаем

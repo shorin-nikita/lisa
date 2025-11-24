@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "model": "qwen2.5:7b-instruct-q4_K_M",
+        "model": "lakomoor/vikhr-llama-3.2-1b-instruct",
         "options": {}
       },
       "id": "8d61de27-45d8-4d10-97cc-3c36d224f865",
@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "model": "qwen2.5:7b-instruct-q4_K_M",
+        "model": "lakomoor/vikhr-llama-3.2-1b-instruct",
         "options": {}
       },
       "id": "cbd5b56f-7afc-4e83-a221-6be4d348374e",
