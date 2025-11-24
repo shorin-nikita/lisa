@@ -197,28 +197,39 @@ def collect_user_inputs():
     inputs = {}
     print(f"\n{Colors.OKCYAN}{Colors.BOLD}📋 КОНФИГУРАЦИЯ СИСТЕМЫ:{Colors.ENDC}\n")
 
-    print(f"{Colors.OKBLUE}🔒 Email для SSL сертификатов:{Colors.ENDC}")
-    print(f"{Colors.WARNING}⚠️  ВАЖНО: Используйте настоящий email адрес!{Colors.ENDC}")
-    print(f"{Colors.WARNING}    Let's Encrypt не принимает фейковые email (например, test@test.test){Colors.ENDC}")
-    inputs['email'] = get_validated_input(
-        "Email для Let's Encrypt: ", validate_email, "Некорректный email")
-
-    print(f"\n{Colors.OKBLUE}🌐 Домен N8N (обязательно):{Colors.ENDC}")
+    print(f"{Colors.OKBLUE}🌐 Домены (введите '-' для пропуска, система будет работать по IP/localhost):{Colors.ENDC}")
+    print(f"{Colors.WARNING}💡 Домены опциональны. Если не указаны, доступ будет по IP адресу сервера{Colors.ENDC}\n")
+    
     inputs['n8n_domain'] = get_validated_input(
-        "Домен N8N (пример: n8n.site.ru): ", validate_domain, "Некорректный домен")
+        "Домен N8N (пример: n8n.site.ru) или '-': ",
+        validate_domain, "Некорректный домен", allow_skip=True)
 
-    print(f"\n{Colors.OKBLUE}🌐 Домен WebUI (обязательно):{Colors.ENDC}")
     inputs['webui_domain'] = get_validated_input(
-        "Домен WebUI (пример: ai.site.ru): ", validate_domain, "Некорректный домен")
+        "Домен WebUI (пример: ai.site.ru) или '-': ",
+        validate_domain, "Некорректный домен", allow_skip=True)
 
-    print(f"\n{Colors.OKBLUE}🌐 Домен Supabase (обязательно):{Colors.ENDC}")
     inputs['supabase_domain'] = get_validated_input(
-        "Домен Supabase (пример: db.site.ru): ", validate_domain, "Некорректный домен")
+        "Домен Supabase (пример: db.site.ru) или '-': ",
+        validate_domain, "Некорректный домен", allow_skip=True)
 
     print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
     inputs['ollama_domain'] = get_validated_input(
         "Домен Ollama (пример: ollama.site.ru) или '-': ",
         validate_domain, "Некорректный домен", allow_skip=True)
+    
+    # Email требуется только если есть хотя бы один домен
+    has_domains = any([inputs.get('n8n_domain'), inputs.get('webui_domain'), 
+                       inputs.get('supabase_domain'), inputs.get('ollama_domain')])
+    
+    if has_domains:
+        print(f"\n{Colors.OKBLUE}🔒 Email для SSL сертификатов:{Colors.ENDC}")
+        print(f"{Colors.WARNING}⚠️  ВАЖНО: Используйте настоящий email адрес!{Colors.ENDC}")
+        print(f"{Colors.WARNING}    Let's Encrypt не принимает фейковые email (например, test@test.test){Colors.ENDC}")
+        inputs['email'] = get_validated_input(
+            "Email для Let's Encrypt: ", validate_email, "Некорректный email")
+    else:
+        print(f"\n{Colors.OKGREEN}✅ Домены не указаны, SSL сертификаты не требуются{Colors.ENDC}")
+        inputs['email'] = None
     
     print(f"\n{Colors.OKBLUE}🔐 Ключи Supabase:{Colors.ENDC}")
     print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys{Colors.ENDC}")
@@ -312,11 +323,22 @@ POOLER_TENANT_ID=1000
 ############
 # Caddy Config - Production domains
 ############
-N8N_HOSTNAME={user_inputs['n8n_domain']}
-WEBUI_HOSTNAME={user_inputs['webui_domain']}
-SUPABASE_HOSTNAME={user_inputs['supabase_domain']}
-LETSENCRYPT_EMAIL={user_inputs['email']}
 """
+    
+    # Обработка доменов: если не указан, использовать формат :port для работы по IP
+    n8n_hostname = user_inputs.get('n8n_domain') if user_inputs.get('n8n_domain') else ":8001"
+    webui_hostname = user_inputs.get('webui_domain') if user_inputs.get('webui_domain') else ":8002"
+    supabase_hostname = user_inputs.get('supabase_domain') if user_inputs.get('supabase_domain') else ":8005"
+    
+    env_content += f"N8N_HOSTNAME={n8n_hostname}\n"
+    env_content += f"WEBUI_HOSTNAME={webui_hostname}\n"
+    env_content += f"SUPABASE_HOSTNAME={supabase_hostname}\n"
+    
+    # Email для Let's Encrypt (только если есть домены)
+    if user_inputs.get('email'):
+        env_content += f"LETSENCRYPT_EMAIL={user_inputs['email']}\n"
+    else:
+        env_content += f"LETSENCRYPT_EMAIL=internal\n"
     
     # Опциональные домены
     if user_inputs.get('ollama_domain'):
@@ -445,6 +467,29 @@ def main():
 
     # Шаг 2: Определение GPU
     gpu_profile = detect_gpu_type()
+    
+    # Шаг 2.5: Проверка ресурсов системы и предупреждение
+    try:
+        cpu_count = os.cpu_count() or 2
+        if platform.system() == "Linux":
+            mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+            mem_gb = mem_bytes / (1024.**3)
+        elif platform.system() == "Darwin":
+            mem_result = run_command("sysctl -n hw.memsize", capture_output=True, check=False, log_cmd=False)
+            mem_gb = int(mem_result) / (1024.**3) if mem_result else 8
+        else:
+            mem_gb = 8
+        
+        if cpu_count < 4 or mem_gb < 12:
+            print(f"\n{Colors.WARNING}⚠️  Обнаружена минимальная конфигурация ({cpu_count} CPU, {mem_gb:.1f}GB RAM){Colors.ENDC}")
+            print(f"{Colors.WARNING}   Система будет работать, но для лучшей производительности Ollama рекомендуется:{Colors.ENDC}")
+            print(f"{Colors.WARNING}   - 4+ CPU ядер{Colors.ENDC}")
+            print(f"{Colors.WARNING}   - 12GB+ RAM{Colors.ENDC}")
+            print(f"{Colors.WARNING}   Для llama3:latest рекомендуется использовать более мощную конфигурацию.{Colors.ENDC}")
+            print(f"{Colors.OKGREEN}   Установка продолжится с автоматической настройкой ресурсов...{Colors.ENDC}\n")
+    except Exception as e:
+        # Если не удалось определить ресурсы, просто продолжаем
+        pass
 
     # Шаг 3: Firewall (не критично)
     setup_firewall()
@@ -522,6 +567,7 @@ def main():
         n8n_domain = None
         supabase_domain = None
         webui_domain = None
+        ollama_domain = None
 
         try:
             with open('.env', 'r') as f:
@@ -538,6 +584,10 @@ def main():
                         domain = line.split('=')[1].strip()
                         if domain and not domain.startswith(':'):
                             webui_domain = domain
+                    elif line.startswith('OLLAMA_HOSTNAME='):
+                        domain = line.split('=')[1].strip()
+                        if domain and not domain.startswith(':'):
+                            ollama_domain = domain
         except:
             pass
 
@@ -560,6 +610,12 @@ def main():
         print(f"  • N8N: {n8n_url}")
         print(f"  • Open WebUI: {webui_url}")
         print(f"  • Supabase: {supabase_url}")
+        
+        # Ollama доступен только если домен указан (иначе только внутри Docker сети)
+        if ollama_domain:
+            ollama_url = f"http://{server_ip}:11434 или https://{ollama_domain}"
+            print(f"  • Ollama: {ollama_url}")
+        
         print(f"\n{Colors.WARNING}💡 Первый запуск: создайте аккаунт в N8N и активируйте план Community Edition{Colors.ENDC}\n")
         
     except Exception as e:

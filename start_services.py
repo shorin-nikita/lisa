@@ -48,6 +48,92 @@ def validate_env_file():
     print(f"✅ Файл .env валиден")
     return True
 
+def get_system_resources():
+    """Получение информации о ресурсах системы"""
+    try:
+        # Количество CPU ядер
+        cpu_count = os.cpu_count() or 2
+        
+        # Объем RAM (в ГБ)
+        if platform.system() == "Linux":
+            mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+            mem_gb = mem_bytes / (1024.**3)
+        elif platform.system() == "Darwin":
+            result = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, check=False)
+            mem_gb = int(result.stdout.strip()) / (1024.**3) if result.stdout.strip() else 8
+        else:
+            mem_gb = 8  # Fallback
+        
+        return cpu_count, int(mem_gb)
+    except:
+        return 2, 8  # Минимальные значения по умолчанию
+
+def update_env_with_resources(cpu_count, mem_gb):
+    """Обновление .env файла с рекомендованными лимитами ресурсов"""
+    if not os.path.exists('.env'):
+        return
+    
+    # Рассчитываем лимиты (консервативные значения для маломощных серверов)
+    # Для систем с 2 CPU / 8GB RAM используем консервативные значения
+    ollama_cpu = max(1, min(int(cpu_count * 0.5), cpu_count - 1))  # Не более половины, но минимум 1
+    ollama_mem = max(2, int(mem_gb * 0.3))
+    
+    postgres_cpu = max(1, min(int(cpu_count * 0.3), cpu_count - 1))
+    postgres_mem = max(1, int(mem_gb * 0.2))
+    
+    n8n_cpu = max(0.5, min(int(cpu_count * 0.2), cpu_count - 1))
+    n8n_mem = max(1, int(mem_gb * 0.15))
+    
+    qdrant_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
+    qdrant_mem = max(1, int(mem_gb * 0.1))
+    
+    webui_cpu = max(0.5, min(int(cpu_count * 0.1), cpu_count - 1))
+    webui_mem = max(1, int(mem_gb * 0.1))
+    
+    # Читаем .env
+    with open('.env', 'r') as f:
+        lines = f.readlines()
+    
+    # Проверяем, есть ли уже эти переменные
+    env_content = ''.join(lines)
+    if 'OLLAMA_CPU_LIMIT' not in env_content:
+        from datetime import datetime
+        resource_vars = [
+            f"\n# Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})\n",
+            f"OLLAMA_CPU_LIMIT={ollama_cpu}\n",
+            f"OLLAMA_MEM_LIMIT={ollama_mem}G\n",
+            f"OLLAMA_CPU_RESERVE={max(0.5, ollama_cpu / 2)}\n",
+            f"OLLAMA_MEM_RESERVE={ollama_mem // 2}G\n",
+            f"POSTGRES_CPU_LIMIT={postgres_cpu}\n",
+            f"POSTGRES_MEM_LIMIT={postgres_mem}G\n",
+            f"POSTGRES_CPU_RESERVE={max(0.5, postgres_cpu / 2)}\n",
+            f"POSTGRES_MEM_RESERVE={postgres_mem // 2}G\n",
+            f"N8N_CPU_LIMIT={n8n_cpu}\n",
+            f"N8N_MEM_LIMIT={n8n_mem}G\n",
+            f"N8N_CPU_RESERVE={max(0.25, n8n_cpu / 2)}\n",
+            f"N8N_MEM_RESERVE={n8n_mem // 2}G\n",
+            f"QDRANT_CPU_LIMIT={qdrant_cpu}\n",
+            f"QDRANT_MEM_LIMIT={qdrant_mem}G\n",
+            f"QDRANT_CPU_RESERVE=0.5\n",
+            f"QDRANT_MEM_RESERVE=1G\n",
+            f"WEBUI_CPU_LIMIT={webui_cpu}\n",
+            f"WEBUI_MEM_LIMIT={webui_mem}G\n",
+            f"WEBUI_CPU_RESERVE=0.5\n",
+            f"WEBUI_MEM_RESERVE=1G\n",
+        ]
+        
+        lines.extend(resource_vars)
+        
+        with open('.env', 'w') as f:
+            f.writelines(lines)
+        
+        print(f"✅ Лимиты ресурсов настроены автоматически:")
+        print(f"   Ollama: {ollama_cpu} CPU, {ollama_mem}G RAM")
+        print(f"   PostgreSQL: {postgres_cpu} CPU, {postgres_mem}G RAM")
+        print(f"   N8N: {n8n_cpu} CPU, {n8n_mem}G RAM")
+        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem}G RAM")
+        print(f"   WebUI: {webui_cpu} CPU, {webui_mem}G RAM")
+
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""
     supabase_compose_file = os.path.join("supabase", "docker", "docker-compose.yml")
@@ -185,6 +271,10 @@ def main():
     # Validate .env file before starting
     if not validate_env_file():
         sys.exit(1)
+
+    # Настройка лимитов ресурсов перед запуском
+    cpu_count, mem_gb = get_system_resources()
+    update_env_with_resources(cpu_count, mem_gb)
 
     prepare_shared_directory()
     clone_supabase_repo()

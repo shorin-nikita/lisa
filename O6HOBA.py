@@ -153,9 +153,78 @@ def create_backup():
         print(f"{Colors.FAIL}❌ Не удалось создать backup{Colors.ENDC}")
         return False
 
+def preserve_n8n_backup():
+    """Сохранение локальных изменений в n8n/backup перед git reset"""
+    if not os.path.exists('n8n/backup'):
+        return None
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    temp_backup_dir = f"/tmp/lisa_n8n_backup_{timestamp}"
+    
+    try:
+        print(f"{Colors.OKBLUE}💾 Сохранение локальных изменений в n8n/backup...{Colors.ENDC}")
+        shutil.copytree('n8n/backup', temp_backup_dir, dirs_exist_ok=True)
+        print(f"{Colors.OKGREEN}✅ Локальные изменения сохранены: {temp_backup_dir}{Colors.ENDC}")
+        return temp_backup_dir
+    except Exception as e:
+        print(f"{Colors.WARNING}⚠️  Не удалось сохранить n8n/backup: {e}{Colors.ENDC}")
+        return None
+
+def restore_n8n_backup(temp_backup_dir):
+    """Восстановление локальных изменений в n8n/backup после git reset"""
+    if not temp_backup_dir or not os.path.exists(temp_backup_dir):
+        return
+    
+    try:
+        print(f"{Colors.OKBLUE}📦 Восстановление локальных изменений в n8n/backup...{Colors.ENDC}")
+        
+        # Создаем директорию если её нет
+        if not os.path.exists('n8n/backup'):
+            os.makedirs('n8n/backup', exist_ok=True)
+        
+        # Восстанавливаем файлы с приоритетом локальных изменений
+        restored_count = 0
+        for root, dirs, files in os.walk(temp_backup_dir):
+            # Вычисляем относительный путь
+            rel_path = os.path.relpath(root, temp_backup_dir)
+            target_dir = os.path.join('n8n/backup', rel_path) if rel_path != '.' else 'n8n/backup'
+            
+            # Создаем директории
+            if rel_path != '.':
+                os.makedirs(target_dir, exist_ok=True)
+            
+            # Копируем файлы
+            for file in files:
+                src_file = os.path.join(root, file)
+                dst_file = os.path.join(target_dir, file)
+                shutil.copy2(src_file, dst_file)
+                restored_count += 1
+        
+        print(f"{Colors.OKGREEN}✅ Восстановлено {restored_count} файлов из n8n/backup{Colors.ENDC}")
+        
+        # Удаляем временную директорию
+        shutil.rmtree(temp_backup_dir)
+        
+    except Exception as e:
+        print(f"{Colors.WARNING}⚠️  Не удалось восстановить n8n/backup: {e}{Colors.ENDC}")
+
 def pull_git_updates():
     """Получение обновлений из Git"""
     print(f"\n{Colors.OKBLUE}🔄 Получение обновлений из Git...{Colors.ENDC}")
+
+    # Проверка наличия remote 'origin'
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True, text=True, check=False, timeout=10
+        )
+        if result.returncode != 0:
+            print(f"{Colors.FAIL}❌ Remote 'origin' не настроен!{Colors.ENDC}")
+            print(f"{Colors.WARNING}   Настройте remote: git remote add origin <url>{Colors.ENDC}")
+            return False
+    except Exception as e:
+        print(f"{Colors.FAIL}❌ Ошибка проверки remote: {e}{Colors.ENDC}")
+        return False
 
     # Проверка наличия изменений
     status = run_command("git status --porcelain", capture_output=True)
@@ -177,10 +246,33 @@ def pull_git_updates():
         except Exception as e:
             print(f"{Colors.WARNING}⚠️  Не удалось сохранить .env: {e}{Colors.ENDC}")
 
+    # Сохранение n8n/backup перед git reset
+    n8n_backup_dir = preserve_n8n_backup()
+
     # Получение обновлений из Git (надежный метод)
+    print(f"{Colors.OKBLUE}📥 Получение обновлений из GitHub...{Colors.ENDC}")
     if not run_command("git fetch origin main", check=False):
         print(f"{Colors.FAIL}❌ Не удалось получить обновления из Git{Colors.ENDC}")
         return False
+
+    # Показываем информацию о полученных изменениях
+    try:
+        result = subprocess.run(
+            ["git", "log", "HEAD..origin/main", "--oneline"],
+            capture_output=True, text=True, check=False, timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            print(f"{Colors.OKCYAN}📋 Получены обновления:{Colors.ENDC}")
+            # Показываем первые несколько коммитов
+            lines = result.stdout.strip().split('\n')[:5]
+            for line in lines:
+                if line.strip():
+                    print(f"   {line}")
+            total_lines = len(result.stdout.strip().split('\n'))
+            if total_lines > 5:
+                print(f"   ... и еще {total_lines - 5} коммитов")
+    except:
+        pass
 
     if not run_command("git reset --hard origin/main", check=False):
         print(f"{Colors.FAIL}❌ Не удалось применить обновления{Colors.ENDC}")
@@ -196,6 +288,9 @@ def pull_git_updates():
         except Exception as e:
             print(f"{Colors.FAIL}❌ Не удалось восстановить .env: {e}{Colors.ENDC}")
             return False
+
+    # Восстановление n8n/backup после git reset
+    restore_n8n_backup(n8n_backup_dir)
 
     print(f"{Colors.OKGREEN}✅ Git обновления получены{Colors.ENDC}")
     return True
