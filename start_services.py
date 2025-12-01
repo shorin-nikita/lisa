@@ -20,6 +20,112 @@ def run_command(cmd, cwd=None):
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, cwd=cwd, check=True)
 
+def run_command_with_output(cmd, cwd=None):
+    """Run a shell command and return output."""
+    print("Running:", " ".join(cmd))
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    return result
+
+def is_ipv6_network_error(stderr):
+    """Проверка на ошибку IPv6 сети."""
+    if not stderr:
+        return False
+    stderr_lower = stderr.lower()
+    if "network is unreachable" in stderr_lower:
+        import re
+        # Ищем IPv6 адрес в ошибке
+        ipv6_pattern = r'\[?[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,7}\]?:\d+'
+        if re.search(ipv6_pattern, stderr):
+            return True
+    return False
+
+def fix_ipv6_issue():
+    """Автоматическое исправление проблемы IPv6."""
+    print("\n⚠️  Обнаружена проблема с IPv6 сетью")
+    print("🔧 Автоматическое исправление...")
+
+    try:
+        # Отключаем IPv6 в sysctl
+        print("   Отключение IPv6 в системе...")
+        subprocess.run(
+            ["sudo", "sysctl", "-w", "net.ipv6.conf.all.disable_ipv6=1"],
+            check=True, capture_output=True
+        )
+        subprocess.run(
+            ["sudo", "sysctl", "-w", "net.ipv6.conf.default.disable_ipv6=1"],
+            check=True, capture_output=True
+        )
+
+        # Делаем изменения постоянными
+        sysctl_conf = "/etc/sysctl.conf"
+        ipv6_settings = "net.ipv6.conf.all.disable_ipv6=1\nnet.ipv6.conf.default.disable_ipv6=1\n"
+
+        # Проверяем, нет ли уже этих настроек
+        try:
+            with open(sysctl_conf, 'r') as f:
+                content = f.read()
+            if "net.ipv6.conf.all.disable_ipv6=1" not in content:
+                subprocess.run(
+                    f'echo "{ipv6_settings}" | sudo tee -a {sysctl_conf}',
+                    shell=True, check=True, capture_output=True
+                )
+        except:
+            pass
+
+        # Перезапускаем Docker
+        print("   Перезапуск Docker...")
+        subprocess.run(["sudo", "systemctl", "restart", "docker"], check=True, capture_output=True)
+
+        # Даём Docker время на запуск
+        print("   Ожидание запуска Docker...")
+        time.sleep(5)
+
+        print("✅ IPv6 отключен, Docker перезапущен\n")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Не удалось автоматически исправить проблему IPv6")
+        print(f"   Выполните вручную:")
+        print(f"   sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1")
+        print(f"   sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1")
+        print(f"   sudo systemctl restart docker")
+        return False
+
+def run_docker_compose_with_retry(cmd, max_retries=2):
+    """Запуск docker compose с автоматическим исправлением ошибки IPv6."""
+    for attempt in range(max_retries):
+        result = run_command_with_output(cmd)
+
+        if result.returncode == 0:
+            if result.stdout:
+                print(result.stdout)
+            return True
+
+        # Проверяем, является ли ошибка проблемой IPv6
+        error_output = (result.stderr or "") + (result.stdout or "")
+
+        if is_ipv6_network_error(error_output):
+            if attempt < max_retries - 1:
+                if fix_ipv6_issue():
+                    print("🔄 Повторная попытка загрузки...\n")
+                    continue
+                else:
+                    # Не удалось исправить автоматически
+                    print(error_output)
+                    raise subprocess.CalledProcessError(result.returncode, cmd)
+            else:
+                print(error_output)
+                raise subprocess.CalledProcessError(result.returncode, cmd)
+        else:
+            # Другая ошибка - не пытаемся исправить
+            if result.stderr:
+                print(result.stderr)
+            if result.stdout:
+                print(result.stdout)
+            raise subprocess.CalledProcessError(result.returncode, cmd)
+
+    return False
+
 def validate_env_file():
     """Проверка наличия и корректности .env файла."""
     if not os.path.exists('.env'):
@@ -192,7 +298,7 @@ def start_supabase(environment=None):
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.supabase.yml"])
     cmd.extend(["up", "-d"])
-    run_command(cmd)
+    run_docker_compose_with_retry(cmd)
 
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
@@ -211,7 +317,7 @@ def start_local_ai(profile=None, environment=None):
     pull_cmd.extend(["pull", "--ignore-buildable"])
 
     try:
-        run_command(pull_cmd)
+        run_docker_compose_with_retry(pull_cmd)
     except subprocess.CalledProcessError as e:
         print(f"⚠️  Некоторые образы не загружены (код: {e.returncode}), продолжаем...")
 
@@ -228,16 +334,16 @@ def start_local_ai(profile=None, environment=None):
     if environment and environment == "public":
         build_cmd.extend(["-f", "docker-compose.override.public.yml"])
     build_cmd.extend(["build"])
-    
+
     try:
-        run_command(build_cmd)
+        run_docker_compose_with_retry(build_cmd)
     except subprocess.CalledProcessError as e:
         # Если сборка не удалась, но образ уже существует, продолжаем
         print(f"⚠️  Предупреждение при сборке образов (код: {e.returncode})")
         print(f"   Продолжаем запуск контейнеров...\n")
-    
+
     print("\n📦 Запускаем сервисы...\n")
-    
+
     cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         cmd.extend(["--profile", profile])
@@ -247,9 +353,9 @@ def start_local_ai(profile=None, environment=None):
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.yml"])
     cmd.extend(["up", "-d", "--pull", "never"])
-    
+
     try:
-        run_command(cmd)
+        run_docker_compose_with_retry(cmd)
     except subprocess.CalledProcessError as e:
         print(f"\n❌ Ошибка запуска LocalAI стека")
         print(f"Проверяем логи проблемных контейнеров...")
