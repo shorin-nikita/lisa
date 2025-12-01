@@ -14,6 +14,7 @@ import time
 import argparse
 import platform
 import sys
+import re
 
 def run_command(cmd, cwd=None):
     """Run a shell command and print it."""
@@ -32,12 +33,59 @@ def is_ipv6_network_error(stderr):
         return False
     stderr_lower = stderr.lower()
     if "network is unreachable" in stderr_lower:
-        import re
         # Ищем IPv6 адрес в ошибке
         ipv6_pattern = r'\[?[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,7}\]?:\d+'
         if re.search(ipv6_pattern, stderr):
             return True
     return False
+
+def is_container_name_conflict(output):
+    """
+    Проверка на ошибку конфликта имён контейнеров.
+    Возвращает (True, [список имён]) если ошибка найдена.
+    """
+    if not output:
+        return False, []
+
+    # Паттерн: The container name "/xxx" is already in use
+    pattern = r'The container name ["\']?/([^"\']+)["\']? is already in use'
+    matches = re.findall(pattern, output)
+
+    if matches:
+        return True, list(set(matches))
+    return False, []
+
+def fix_container_conflict(container_names):
+    """
+    Автоматическое удаление конфликтующих контейнеров.
+    Возвращает True если все контейнеры удалены.
+    """
+    print(f"\n⚠️  Конфликт имён контейнеров: {', '.join(container_names)}")
+    print("🔧 Автоматическое исправление...")
+
+    success = True
+    for name in container_names:
+        try:
+            # Принудительное удаление контейнера
+            result = subprocess.run(
+                ["docker", "rm", "-f", name],
+                capture_output=True, text=True, timeout=30
+            )
+            if result.returncode == 0 or "No such container" in (result.stderr or ""):
+                print(f"   ✅ Контейнер '{name}' удалён")
+            else:
+                print(f"   ❌ Не удалось удалить '{name}': {result.stderr.strip()}")
+                success = False
+        except subprocess.TimeoutExpired:
+            print(f"   ❌ Таймаут при удалении '{name}'")
+            success = False
+        except Exception as e:
+            print(f"   ❌ Ошибка: {e}")
+            success = False
+
+    if success:
+        print("✅ Конфликтующие контейнеры удалены\n")
+    return success
 
 def fix_ipv6_issue():
     """Автоматическое исправление проблемы IPv6."""
@@ -91,8 +139,12 @@ def fix_ipv6_issue():
         print(f"   sudo systemctl restart docker")
         return False
 
-def run_docker_compose_with_retry(cmd, max_retries=2):
-    """Запуск docker compose с автоматическим исправлением ошибки IPv6."""
+def run_docker_compose_with_retry(cmd, max_retries=3):
+    """
+    Запуск docker compose с автоматическим исправлением известных ошибок:
+    - Ошибка IPv6 сети
+    - Конфликт имён контейнеров (код 7)
+    """
     for attempt in range(max_retries):
         result = run_command_with_output(cmd)
 
@@ -101,28 +153,41 @@ def run_docker_compose_with_retry(cmd, max_retries=2):
                 print(result.stdout)
             return True
 
-        # Проверяем, является ли ошибка проблемой IPv6
         error_output = (result.stderr or "") + (result.stdout or "")
 
+        # Проверка 1: Конфликт имён контейнеров
+        is_conflict, container_names = is_container_name_conflict(error_output)
+        if is_conflict:
+            if attempt < max_retries - 1:
+                if fix_container_conflict(container_names):
+                    print("🔄 Повторная попытка запуска...\n")
+                    continue
+                else:
+                    print(error_output)
+                    raise subprocess.CalledProcessError(result.returncode, cmd)
+            else:
+                print(error_output)
+                raise subprocess.CalledProcessError(result.returncode, cmd)
+
+        # Проверка 2: Ошибка IPv6
         if is_ipv6_network_error(error_output):
             if attempt < max_retries - 1:
                 if fix_ipv6_issue():
                     print("🔄 Повторная попытка загрузки...\n")
                     continue
                 else:
-                    # Не удалось исправить автоматически
                     print(error_output)
                     raise subprocess.CalledProcessError(result.returncode, cmd)
             else:
                 print(error_output)
                 raise subprocess.CalledProcessError(result.returncode, cmd)
-        else:
-            # Другая ошибка - не пытаемся исправить
-            if result.stderr:
-                print(result.stderr)
-            if result.stdout:
-                print(result.stdout)
-            raise subprocess.CalledProcessError(result.returncode, cmd)
+
+        # Неизвестная ошибка - не пытаемся исправить
+        if result.stderr:
+            print(result.stderr)
+        if result.stdout:
+            print(result.stdout)
+        raise subprocess.CalledProcessError(result.returncode, cmd)
 
     return False
 
@@ -283,13 +348,59 @@ def prepare_supabase_env():
     print("Copying .env in root to .env in supabase/docker...")
     shutil.copyfile(env_example_path, env_path)
 
+def cleanup_orphaned_containers():
+    """
+    Удаление осиротевших контейнеров проекта localai.
+    Вызывается перед запуском для предотвращения конфликтов имён.
+    """
+    # Список контейнеров, которые могут остаться после неудачного запуска
+    known_containers = [
+        "n8n", "n8n-import", "ollama", "ollama-pull-models",
+        "whisper", "qdrant", "redis", "caddy", "open-webui",
+        "localai-postgres-1"
+    ]
+
+    orphaned = []
+    for name in known_containers:
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Status}}", name],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                # Контейнер существует
+                orphaned.append(name)
+        except:
+            pass
+
+    if orphaned:
+        print(f"🧹 Очистка осиротевших контейнеров: {', '.join(orphaned)}")
+        for name in orphaned:
+            try:
+                subprocess.run(
+                    ["docker", "rm", "-f", name],
+                    capture_output=True, timeout=30
+                )
+            except:
+                pass
+
 def stop_existing_containers(profile=None):
     print("Stopping and removing existing containers for the unified project 'localai'...")
+
+    # Сначала пробуем остановить через docker compose
     cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         cmd.extend(["--profile", profile])
-    cmd.extend(["-f", "docker-compose.yml", "down"])
-    run_command(cmd)
+    cmd.extend(["-f", "docker-compose.yml", "down", "--remove-orphans"])
+
+    try:
+        run_command(cmd)
+    except subprocess.CalledProcessError:
+        # Если не получилось - продолжаем, cleanup_orphaned_containers справится
+        pass
+
+    # Дополнительная очистка осиротевших контейнеров
+    cleanup_orphaned_containers()
 
 def start_supabase(environment=None):
     """Start the Supabase services (using its compose file)."""
