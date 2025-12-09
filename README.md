@@ -80,6 +80,7 @@
 [![Видео-инструкция по установке](https://img.youtube.com/vi/vEwYIoZAFOY/maxresdefault.jpg)](https://youtu.be/vEwYIoZAFOY)
 
 > **Видео-инструкция:** [Смотреть на YouTube](https://youtu.be/vEwYIoZAFOY)
+> **Инструкция с скриншотами:** [Читать статью](https://aibot.direct/blog/lisa-install)
 
 ```bash
 # 1. Клонировать репозиторий
