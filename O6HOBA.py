@@ -15,6 +15,9 @@ import sys
 import shutil
 from datetime import datetime
 
+# Коды ошибок
+EXIT_CODE_DISK_SPACE = 14
+
 # Цвета для вывода
 class Colors:
     HEADER = '\033[95m'
@@ -25,6 +28,106 @@ class Colors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
+
+
+def is_disk_space_error(output):
+    """
+    Проверка на ошибку нехватки места на диске.
+    """
+    if not output:
+        return False
+    output_lower = output.lower()
+    return "no space left on device" in output_lower
+
+
+def get_disk_usage_info():
+    """Получение информации об использовании диска."""
+    info = {}
+    try:
+        result = subprocess.run(
+            ["df", "-h", "/var/lib/docker"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            if len(lines) > 1:
+                parts = lines[1].split()
+                if len(parts) >= 5:
+                    info['docker_disk'] = {
+                        'total': parts[1],
+                        'used': parts[2],
+                        'available': parts[3],
+                        'use_percent': parts[4]
+                    }
+    except:
+        pass
+
+    try:
+        result = subprocess.run(
+            ["docker", "system", "df"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            info['docker_system'] = result.stdout
+    except:
+        pass
+
+    return info
+
+
+def print_disk_space_recommendations():
+    """Вывод рекомендаций по освобождению места на диске (безопасные для данных)."""
+    print(f"\n{Colors.FAIL}{'=' * 65}")
+    print(f"❌ ОШИБКА: Недостаточно места на диске (код {EXIT_CODE_DISK_SPACE})")
+    print(f"{'=' * 65}{Colors.ENDC}")
+
+    # Показываем информацию о диске
+    info = get_disk_usage_info()
+    if 'docker_disk' in info:
+        d = info['docker_disk']
+        print(f"\n{Colors.OKCYAN}📊 Состояние диска Docker:{Colors.ENDC}")
+        print(f"   Всего: {d['total']}, Использовано: {d['used']}, Свободно: {d['available']} ({d['use_percent']})")
+
+    if 'docker_system' in info:
+        print(f"\n{Colors.OKCYAN}📦 Использование Docker:{Colors.ENDC}")
+        for line in info['docker_system'].strip().split('\n')[:5]:
+            print(f"   {line}")
+
+    print(f"\n{Colors.WARNING}{'-' * 65}")
+    print(f"🔧 РЕКОМЕНДАЦИИ ПО ОСВОБОЖДЕНИЮ МЕСТА (безопасные для данных):")
+    print(f"{'-' * 65}{Colors.ENDC}")
+
+    print(f"""
+{Colors.OKGREEN}1.{Colors.ENDC} Удалить неиспользуемые Docker образы (НЕ удаляет volumes с данными):
+   {Colors.OKCYAN}docker image prune -a{Colors.ENDC}
+
+{Colors.OKGREEN}2.{Colors.ENDC} Удалить остановленные контейнеры:
+   {Colors.OKCYAN}docker container prune{Colors.ENDC}
+
+{Colors.OKGREEN}3.{Colors.ENDC} Удалить кэш сборки Docker:
+   {Colors.OKCYAN}docker builder prune{Colors.ENDC}
+
+{Colors.OKGREEN}4.{Colors.ENDC} Комплексная очистка БЕЗ удаления volumes (сохраняет данные):
+   {Colors.OKCYAN}docker system prune -a{Colors.ENDC}
+
+   {Colors.FAIL}⚠️  НЕ используйте флаг --volumes, это удалит данные!{Colors.ENDC}
+
+{Colors.OKGREEN}5.{Colors.ENDC} Проверить что занимает место:
+   {Colors.OKCYAN}du -sh /var/lib/docker/*{Colors.ENDC}
+   {Colors.OKCYAN}docker system df -v{Colors.ENDC}
+
+{Colors.OKGREEN}6.{Colors.ENDC} Удалить старые логи Docker:
+   {Colors.OKCYAN}sudo sh -c 'truncate -s 0 /var/lib/docker/containers/*/*-json.log'{Colors.ENDC}
+
+{Colors.OKGREEN}7.{Colors.ENDC} Если используется журнал systemd:
+   {Colors.OKCYAN}sudo journalctl --vacuum-size=100M{Colors.ENDC}
+""")
+
+    print(f"{Colors.WARNING}{'-' * 65}{Colors.ENDC}")
+    print(f"После освобождения места запустите обновление повторно:")
+    print(f"   {Colors.OKCYAN}python3 O6HOBA.py{Colors.ENDC}")
+    print(f"{Colors.FAIL}{'=' * 65}{Colors.ENDC}\n")
+
 
 def print_header():
     print(f"""{Colors.HEADER}{Colors.BOLD}
@@ -45,6 +148,40 @@ def run_command(cmd, check=True, capture_output=False):
     except Exception as e:
         print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
         return False
+
+
+def run_command_check_disk(cmd, description=""):
+    """
+    Выполнить команду с проверкой на ошибку нехватки места на диске.
+    Возвращает (success, is_disk_error).
+    """
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=600
+        )
+
+        output = (result.stdout or "") + (result.stderr or "")
+
+        # Проверка на ошибку нехватки места
+        if is_disk_space_error(output):
+            return False, True
+
+        if result.returncode != 0:
+            if output:
+                print(output)
+            return False, False
+
+        return True, False
+
+    except subprocess.TimeoutExpired:
+        print(f"{Colors.FAIL}❌ Таймаут выполнения команды{Colors.ENDC}")
+        return False, False
+    except Exception as e:
+        error_str = str(e)
+        if is_disk_space_error(error_str):
+            return False, True
+        print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
+        return False, False
 
 def detect_gpu_type():
     """Определение типа GPU"""
@@ -308,35 +445,64 @@ def stop_services(profile):
         return False
 
 def update_containers():
-    """Обновление Docker контейнеров"""
+    """
+    Обновление Docker контейнеров.
+    Возвращает (success, is_disk_error).
+    """
     print(f"\n{Colors.OKBLUE}🐳 Обновление Docker образов...{Colors.ENDC}")
-    
+
     # Pull новых образов (игнорируем образы, которые нужно собирать)
-    if not run_command("docker compose -p localai pull --ignore-buildable"):
-        print(f"{Colors.FAIL}❌ Не удалось скачать обновления{Colors.ENDC}")
-        return False
-    
+    success, is_disk_error = run_command_check_disk(
+        "docker compose -p localai pull --ignore-buildable"
+    )
+    if is_disk_error:
+        return False, True
+    if not success:
+        print(f"{Colors.WARNING}⚠️  Некоторые образы не загружены, продолжаем...{Colors.ENDC}")
+
     # Rebuild кастомных образов (n8n-ffmpeg)
     print(f"\n{Colors.OKBLUE}🔨 Пересборка кастомных образов...{Colors.ENDC}")
-    if not run_command("docker compose -p localai build n8n"):
+    success, is_disk_error = run_command_check_disk(
+        "docker compose -p localai build n8n"
+    )
+    if is_disk_error:
+        return False, True
+    if not success:
         print(f"{Colors.WARNING}⚠️  Не удалось пересобрать n8n-ffmpeg{Colors.ENDC}")
-    
+
     print(f"{Colors.OKGREEN}✅ Docker образы обновлены{Colors.ENDC}")
-    return True
+    return True, False
 
 def restart_services(profile, environment):
-    """Перезапуск сервисов"""
+    """
+    Перезапуск сервисов.
+    Возвращает (success, is_disk_error).
+    """
     print(f"\n{Colors.OKBLUE}🚀 Перезапуск сервисов...{Colors.ENDC}")
 
     cmd = f"python3 start_services.py --profile {profile} --environment {environment}"
     print(f"{Colors.OKCYAN}   Команда: {cmd}{Colors.ENDC}")
 
-    if run_command(cmd):
-        print(f"{Colors.OKGREEN}✅ Сервисы запущены{Colors.ENDC}")
-        return True
-    else:
-        print(f"{Colors.FAIL}❌ Не удалось запустить сервисы{Colors.ENDC}")
-        return False
+    try:
+        result = subprocess.run(cmd, shell=True, timeout=600)
+
+        # Проверка на код ошибки нехватки места
+        if result.returncode == EXIT_CODE_DISK_SPACE:
+            return False, True
+
+        if result.returncode == 0:
+            print(f"{Colors.OKGREEN}✅ Сервисы запущены{Colors.ENDC}")
+            return True, False
+        else:
+            print(f"{Colors.FAIL}❌ Не удалось запустить сервисы{Colors.ENDC}")
+            return False, False
+
+    except subprocess.TimeoutExpired:
+        print(f"{Colors.FAIL}❌ Таймаут запуска сервисов{Colors.ENDC}")
+        return False, False
+    except Exception as e:
+        print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
+        return False, False
 
 def ensure_ollama_models():
     """Проверка и загрузка необходимых моделей Ollama"""
@@ -484,15 +650,15 @@ def update_env_with_resources(cpu_count, mem_gb):
 
 def main():
     print_header()
-    
+
     print(f"\n{Colors.WARNING}⚠️  ВНИМАНИЕ: Это обновит систему до последней версии{Colors.ENDC}")
     print(f"{Colors.WARNING}   Будет создана резервная копия перед обновлением{Colors.ENDC}\n")
-    
+
     response = input(f"{Colors.BOLD}Продолжить обновление? (y/n): {Colors.ENDC}").strip().lower()
     if response != 'y':
         print(f"\n{Colors.WARNING}Обновление отменено{Colors.ENDC}")
         sys.exit(0)
-    
+
     # Шаг 1: Определение конфигурации
     gpu_profile = detect_gpu_type()
     environment = detect_environment()
@@ -517,12 +683,20 @@ def main():
     update_env_with_resources(cpu_count, mem_gb)
 
     # Шаг 6: Обновление контейнеров
-    if not update_containers():
+    success, is_disk_error = update_containers()
+    if is_disk_error:
+        print_disk_space_recommendations()
+        sys.exit(EXIT_CODE_DISK_SPACE)
+    if not success:
         print(f"\n{Colors.FAIL}❌ Не удалось обновить контейнеры{Colors.ENDC}")
         sys.exit(1)
 
     # Шаг 7: Перезапуск сервисов
-    if not restart_services(gpu_profile, environment):
+    success, is_disk_error = restart_services(gpu_profile, environment)
+    if is_disk_error:
+        print_disk_space_recommendations()
+        sys.exit(EXIT_CODE_DISK_SPACE)
+    if not success:
         print(f"\n{Colors.FAIL}❌ Не удалось перезапустить сервисы{Colors.ENDC}")
         sys.exit(1)
 
@@ -539,6 +713,7 @@ def main():
     print(f"\n{Colors.OKCYAN}📋 Система обновлена и запущена{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Профиль: {gpu_profile}{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Окружение: {environment}{Colors.ENDC}\n")
+
 
 if __name__ == "__main__":
     main()

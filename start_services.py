@@ -16,6 +16,14 @@ import platform
 import sys
 import re
 
+# Коды ошибок
+EXIT_CODE_DISK_SPACE = 14
+
+
+class DiskSpaceError(Exception):
+    """Ошибка нехватки места на диске."""
+    pass
+
 def run_command(cmd, cwd=None):
     """Run a shell command and print it."""
     print("Running:", " ".join(cmd))
@@ -54,6 +62,108 @@ def is_container_name_conflict(output):
     if matches:
         return True, list(set(matches))
     return False, []
+
+
+def is_disk_space_error(output):
+    """
+    Проверка на ошибку нехватки места на диске.
+    Возвращает True если обнаружена ошибка "no space left on device".
+    """
+    if not output:
+        return False
+    output_lower = output.lower()
+    return "no space left on device" in output_lower
+
+
+def get_disk_usage_info():
+    """Получение информации об использовании диска."""
+    info = {}
+    try:
+        # Место на диске
+        result = subprocess.run(
+            ["df", "-h", "/var/lib/docker"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            if len(lines) > 1:
+                parts = lines[1].split()
+                if len(parts) >= 5:
+                    info['docker_disk'] = {
+                        'total': parts[1],
+                        'used': parts[2],
+                        'available': parts[3],
+                        'use_percent': parts[4]
+                    }
+    except:
+        pass
+
+    try:
+        # Docker system df
+        result = subprocess.run(
+            ["docker", "system", "df"],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            info['docker_system'] = result.stdout
+    except:
+        pass
+
+    return info
+
+
+def print_disk_space_recommendations():
+    """Вывод рекомендаций по освобождению места на диске (безопасные для данных)."""
+    print("\n" + "=" * 65)
+    print("❌ ОШИБКА: Недостаточно места на диске (код 14)")
+    print("=" * 65)
+
+    # Показываем информацию о диске
+    info = get_disk_usage_info()
+    if 'docker_disk' in info:
+        d = info['docker_disk']
+        print(f"\n📊 Состояние диска Docker:")
+        print(f"   Всего: {d['total']}, Использовано: {d['used']}, Свободно: {d['available']} ({d['use_percent']})")
+
+    if 'docker_system' in info:
+        print(f"\n📦 Использование Docker:")
+        for line in info['docker_system'].strip().split('\n')[:5]:
+            print(f"   {line}")
+
+    print("\n" + "-" * 65)
+    print("🔧 РЕКОМЕНДАЦИИ ПО ОСВОБОЖДЕНИЮ МЕСТА (безопасные для данных):")
+    print("-" * 65)
+
+    print("""
+1. Удалить неиспользуемые Docker образы (НЕ удаляет volumes с данными):
+   docker image prune -a
+
+2. Удалить остановленные контейнеры:
+   docker container prune
+
+3. Удалить кэш сборки Docker:
+   docker builder prune
+
+4. Комплексная очистка БЕЗ удаления volumes (сохраняет данные):
+   docker system prune -a
+
+   ⚠️  НЕ используйте флаг --volumes, это удалит данные!
+
+5. Проверить что занимает место:
+   du -sh /var/lib/docker/*
+   docker system df -v
+
+6. Удалить старые логи Docker:
+   sudo sh -c 'truncate -s 0 /var/lib/docker/containers/*/*-json.log'
+
+7. Если используется журнал systemd:
+   sudo journalctl --vacuum-size=100M
+""")
+
+    print("-" * 65)
+    print("После освобождения места запустите обновление повторно:")
+    print("   python3 O6HOBA.py")
+    print("=" * 65 + "\n")
 
 def fix_container_conflict(container_names):
     """
@@ -144,6 +254,7 @@ def run_docker_compose_with_retry(cmd, max_retries=3):
     Запуск docker compose с автоматическим исправлением известных ошибок:
     - Ошибка IPv6 сети
     - Конфликт имён контейнеров (код 7)
+    - Нехватка места на диске (код 14) - не исправляется автоматически
     """
     for attempt in range(max_retries):
         result = run_command_with_output(cmd)
@@ -154,6 +265,11 @@ def run_docker_compose_with_retry(cmd, max_retries=3):
             return True
 
         error_output = (result.stderr or "") + (result.stdout or "")
+
+        # Проверка 0: Нехватка места на диске (критическая, не исправляется)
+        if is_disk_space_error(error_output):
+            print(error_output)
+            raise DiskSpaceError("no space left on device")
 
         # Проверка 1: Конфликт имён контейнеров
         is_conflict, container_names = is_container_name_conflict(error_output)
@@ -524,34 +640,40 @@ def main():
                       help='Environment to use for Docker Compose (default: private)')
     args = parser.parse_args()
 
-    # Validate .env file before starting
-    if not validate_env_file():
-        sys.exit(1)
+    try:
+        # Validate .env file before starting
+        if not validate_env_file():
+            sys.exit(1)
 
-    # Настройка лимитов ресурсов перед запуском
-    cpu_count, mem_gb = get_system_resources()
-    update_env_with_resources(cpu_count, mem_gb)
+        # Настройка лимитов ресурсов перед запуском
+        cpu_count, mem_gb = get_system_resources()
+        update_env_with_resources(cpu_count, mem_gb)
 
-    prepare_shared_directory()
-    clone_supabase_repo()
-    prepare_supabase_env()
+        prepare_shared_directory()
+        clone_supabase_repo()
+        prepare_supabase_env()
 
-    stop_existing_containers(args.profile)
+        stop_existing_containers(args.profile)
 
-    # Start Supabase first
-    start_supabase(args.environment)
+        # Start Supabase first
+        start_supabase(args.environment)
 
-    # Give Supabase some time to initialize
-    print("Waiting for Supabase to initialize...")
-    time.sleep(30)
+        # Give Supabase some time to initialize
+        print("Waiting for Supabase to initialize...")
+        time.sleep(30)
 
-    # Start the local AI services
-    start_local_ai(args.profile, args.environment)
+        # Start the local AI services
+        start_local_ai(args.profile, args.environment)
 
-    # Ожидание критичных сервисов
-    if not wait_for_postgres_healthy():
-        print(f"\n❌ Установка прервана: PostgreSQL не запустился")
-        sys.exit(1)
+        # Ожидание критичных сервисов
+        if not wait_for_postgres_healthy():
+            print(f"\n❌ Установка прервана: PostgreSQL не запустился")
+            sys.exit(1)
+
+    except DiskSpaceError:
+        print_disk_space_recommendations()
+        sys.exit(EXIT_CODE_DISK_SPACE)
+
 
 if __name__ == "__main__":
     main()
