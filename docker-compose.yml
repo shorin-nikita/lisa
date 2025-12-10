@@ -82,7 +82,12 @@ services:
     entrypoint: /bin/sh
     command:
       - "-c"
-      - "n8n import:credentials --separate --input=/backup/credentials && n8n import:workflow --separate --input=/backup/workflows"
+      - |
+        # Import credentials (ignore errors for fresh installs)
+        n8n import:credentials --separate --input=/backup/credentials || true
+        # Import workflows (ignore webhook cleanup errors for fresh installs)
+        n8n import:workflow --separate --input=/backup/workflows || true
+        echo "Import completed"
     volumes:
       - ./n8n/backup:/backup  
 
