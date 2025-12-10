@@ -1,0 +1,1475 @@
+{
+  "name": "RAG L.I.S.A.",
+  "nodes": [
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.data || $json.text || $json.concatenated_data }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "=file_id",
+                "value": "={{ $('ID файла').first().json.file_id }}"
+              },
+              {
+                "name": "file_title",
+                "value": "={{ $('ID файла').first().json.file_title }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c240af86-89f6-4220-9155-f9778527ef42",
+      "name": "Загрузчик документов",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        -1696,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "05b59dd6-6c6e-4fd2-a810-18dc600d93a6",
+      "name": "Извлечь текст (TXT)",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -2480,
+        -224
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "10646eae-ae46-4327-a4dc-9987c2d76173",
+              "name": "file_id",
+              "value": "={{ $json.path }}",
+              "type": "string"
+            },
+            {
+              "id": "f4536df5-d0b1-4392-bf17-b8137fb31a44",
+              "name": "file_type",
+              "value": "={{ $json.path.split(/[\\\\/]/).pop().split('.').pop(); }}",
+              "type": "string"
+            },
+            {
+              "id": "77d782de-169d-4a46-8a8e-a3831c04d90f",
+              "name": "file_title",
+              "value": "={{ $json.path.split(/[\\\\/]/).pop().split('.').slice(0, -1).join('.'); }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3085af91-1418-4b15-83a5-0193461cffbc",
+      "name": "ID файла",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3488,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "e873f27e-afa2-4b98-bb03-1920b05183a7",
+      "name": "Извлечь текст (PDF)",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -2480,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "6630ad11-2d4f-46f5-bc23-07dca5aaaf83",
+      "name": "Агрегация",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -2144,
+        -560
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42806db2-c660-4271-80db-0a1f47826f1a",
+      "name": "Объединить",
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1,
+      "position": [
+        -1904,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "fc193b06-363b-4699-a97d-e5a850138b0e",
+                    "leftValue": "={{ $('ID файла').item.json.file_type }}",
+                    "rightValue": "=csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "csv"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "2ae7faa7-a936-4621-a680-60c512163034",
+                    "leftValue": "={{ $('ID файла').item.json.file_type }}",
+                    "rightValue": "xlsx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "xlsx"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "b69f5605-0179-4b02-9a32-e34bb085f82d",
+                    "leftValue": "={{ $('ID файла').item.json.file_type }}",
+                    "rightValue": "txt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "txt"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('ID файла').item.json.file_type }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "81a2f32c-1a39-4b4c-b146-301c5a71ce33"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pdf"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "94afd27b-6ca4-4656-b8a8-915fc8035372",
+      "name": "Тип файла",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -2752,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "id": "b512b4ba-c276-4c74-a613-49eb343f540f",
+      "name": "Извлечь из Excel",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -2496,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f422e2e0-381c-46ea-8f38-3f58c501d8b9",
+              "name": "schema",
+              "value": "={{ $('Извлечь из Excel').isExecuted ? $('Извлечь из Excel').first().json.keys().toJsonString() : $('Извлечь из CSV').first().json.keys().toJsonString() }}",
+              "type": "string"
+            },
+            {
+              "id": "bb07c71e-5b60-4795-864c-cc3845b6bc46",
+              "name": "data",
+              "value": "={{ $json.concatenated_data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1664,
+        -624
+      ],
+      "id": "8ca1e4c6-f24e-428a-9e19-b5c9c721fb96",
+      "name": "Установить схему"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -2496,
+        -560
+      ],
+      "id": "cf8008e9-b93b-4cc0-a245-2f90b5cae377",
+      "name": "Извлечь из CSV"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3680,
+        -192
+      ],
+      "id": "eaf0fb93-8911-487a-a675-533fbbf5d224",
+      "name": "Цикл по файлам"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('ID файла').item.json.file_id }}",
+            "title": "={{ $('ID файла').item.json.file_title }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "schema",
+              "displayName": "schema",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3040,
+        -192
+      ],
+      "id": "5bcf0381-e8e4-466a-8a14-3608be5341d2",
+      "name": "Сохранить метаданные",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_rows",
+          "mode": "list",
+          "cachedResultName": "document_rows"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "dataset_id": "={{ $('ID файла').item.json.file_id }}",
+            "row_data": "={{ $json.toJsonString().replaceAll(/'/g, \"''\") }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "dataset_id",
+              "displayName": "dataset_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_data",
+              "displayName": "row_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2144,
+        -384
+      ],
+      "id": "28e380ae-2a02-4eb6-9f7e-08d240f2eb7b",
+      "name": "Сохранить строки",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('ID файла').item.json.file_id }}",
+            "schema": "={{ $json.schema }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "schema",
+              "displayName": "schema",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1440,
+        -624
+      ],
+      "id": "b22f0ff8-6447-4b2e-bed3-d77ca13c4a44",
+      "name": "Обновить схему",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/data/shared",
+        "events": [
+          "add",
+          "change"
+        ],
+        "options": {
+          "followSymlinks": true,
+          "usePolling": true
+        }
+      },
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3904,
+        -192
+      ],
+      "id": "8141d1a5-462b-493b-8a40-d6cbcce90d20",
+      "name": "Триггер: новый файл"
+    },
+    {
+      "parameters": {
+        "fileSelector": "={{ $('ID файла').item.json.file_id }}",
+        "options": {
+          "dataPropertyName": "=data"
+        }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        -2896,
+        -352
+      ],
+      "id": "344f248d-d1e4-4f9f-9a9b-e70d080bb66a",
+      "name": "Прочитать файл"
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -1824,
+        0
+      ],
+      "id": "83a79fdd-5278-4b1e-9bf4-a66b60958328",
+      "name": "Эмбеддинги",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xIPiDM6BmW448qG5",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 300,
+        "chunkOverlap": 30,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        -1552,
+        112
+      ],
+      "id": "8fbb83a3-db0b-4db8-9a75-9dd4563407b5",
+      "name": "Разбиение текста"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DO $$\nBEGIN\n    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'documents_pg') THEN\n        EXECUTE 'DELETE FROM documents_pg WHERE metadata->>''file_id'' LIKE ''%' || $1 || '%''';\n    END IF;\nEND\n$$;",
+        "options": {
+          "queryReplacement": "={{ $json.file_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3344,
+        -224
+      ],
+      "id": "cd0d83a7-49b9-427e-acc0-86abb75b1ff6",
+      "name": "Удалить старые векторы",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM document_rows\nWHERE dataset_id LIKE '%' || $1 || '%';",
+        "options": {
+          "queryReplacement": "={{ $('ID файла').item.json.file_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3184,
+        -336
+      ],
+      "id": "bf537dae-c38b-4f3b-bc8e-19e8c29f3219",
+      "name": "Удалить старые строки",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "documents_pg",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        -1632,
+        -224
+      ],
+      "id": "a9695457-b1b5-4d18-ade9-43ab770ad806",
+      "name": "Векторное хранилище",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3840,
+        -1024
+      ],
+      "id": "4c5624be-31b9-4c0b-9a4c-24ef4a42f038",
+      "name": "Запуск инициализации"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- ============================================\n-- Инициализация базы данных для RAG системы\n-- Скрипт безопасен для повторного выполнения\n-- Автоматически мигрирует старую схему если нужно\n-- ============================================\n\n-- 1. Подключение расширения pgvector для работы с векторными эмбеддингами\nCREATE EXTENSION IF NOT EXISTS vector;\n\n-- 2. Создание или миграция таблицы documents_pg\nDO $$ \nBEGIN\n    -- Проверяем, существует ли таблица\n    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'documents_pg') THEN\n        -- Таблица не существует - создаём с правильной схемой\n        CREATE TABLE documents_pg (\n            id BIGSERIAL PRIMARY KEY,\n            text TEXT,\n            metadata JSONB,\n            embedding vector(768)\n        );\n        RAISE NOTICE 'Таблица documents_pg создана';\n    ELSE\n        -- Таблица существует - проверяем, нужна ли миграция колонки content -> text\n        IF EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'documents_pg' AND column_name = 'content') \n           AND NOT EXISTS (SELECT FROM information_schema.columns WHERE table_name = 'documents_pg' AND column_name = 'text') THEN\n            -- Переименовываем колонку content в text для совместимости с LangChain\n            ALTER TABLE documents_pg RENAME COLUMN content TO text;\n            RAISE NOTICE 'Колонка content переименована в text';\n        ELSE\n            RAISE NOTICE 'Таблица documents_pg уже в актуальном состоянии';\n        END IF;\n    END IF;\nEND $$;\n\n-- 3. Индекс для быстрого векторного поиска (HNSW - работает без данных)\nCREATE INDEX IF NOT EXISTS documents_pg_embedding_idx \n    ON documents_pg \n    USING hnsw (embedding vector_cosine_ops);\n\n-- 4. Таблица метаданных документов\nCREATE TABLE IF NOT EXISTS document_metadata (\n    id TEXT PRIMARY KEY,\n    title TEXT,\n    created_at TIMESTAMP DEFAULT NOW(),\n    schema TEXT\n);\n\n-- 5. Таблица строк документов (для табличных данных CSV/Excel)\nDO $$ \nBEGIN\n    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'document_rows') THEN\n        CREATE TABLE document_rows (\n            id SERIAL PRIMARY KEY,\n            dataset_id TEXT REFERENCES document_metadata(id) ON DELETE CASCADE,\n            row_data JSONB\n        );\n        CREATE INDEX idx_document_rows_dataset_id ON document_rows(dataset_id);\n        RAISE NOTICE 'Таблица document_rows создана';\n    ELSE\n        RAISE NOTICE 'Таблица document_rows уже существует';\n    END IF;\nEND $$;\n\n-- ============================================\n-- Инициализация завершена успешно\n-- ============================================",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -3616,
+        -1024
+      ],
+      "id": "aa6c541f-9d7f-443b-8510-b3ab3293cc46",
+      "name": "Инициализация БД для RAG",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# RAG L.I.S.A.\n**Локальная Интеллектуальная Система Автоматизации**\n\nАвтор: [Nikita Shorin](https://www.youtube.com/@shorin_nikita)\n\n---\n\n## Что это?\nAI-ассистент, который отвечает на вопросы по вашим документам. Загружаете файлы — он их запоминает и ищет ответы.\n\n---\n\n## 3 части workflow\n\n### 🟣 Инициализация БД\nЗапустите **один раз** при первой настройке.\nСоздаёт таблицы в PostgreSQL для хранения документов.\n\n### 🟢 AI Agent (L.I.S.A.)\nОтвечает на вопросы пользователя.\n- Ищет по смыслу в текстах (RAG)\n- Делает SQL-запросы к таблицам (CSV/Excel)\n- Помнит контекст диалога\n\n### 🟡 Загрузка данных\nСледит за папкой — новые файлы автоматически индексируются.\n- **CSV, Excel** → сохраняет как таблицу + векторный индекс\n- **TXT, PDF** → только векторный индекс\n\n---\n\n## Быстрый старт\n\n1. **PostgreSQL** — настройте credentials [host: db], [password: из файла .env]\n2. **Ollama** — [url:  http://ollama:11434]\n3. **LLM** — OpenRouter / OpenAI / Ollama (с поддержкой tools)\n4. **Папка** — укажите путь в Local File Trigger\n5. **Запуск** — нажмите Execute на ноде инициализации\n\n---\n\n## Примеры вопросов\n\n**К таблицам:**\n- «Покажи топ-5 по цене»\n- «Сколько записей со статусом X?»\n\n**К текстам:**\n- «Какие условия доставки?»\n- «Расскажи про гарантию»\n\n---\n\n[@PrideAIBot](https://t.me/PrideAIBot)",
+        "height": 1456,
+        "width": 480,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4480,
+        -1248
+      ],
+      "id": "40cad863-afa8-489c-99dc-70303cb8d8e0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 256,
+        "width": 464,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3888,
+        -1072
+      ],
+      "id": "c4a4a784-69bb-45a5-975b-e9b2ce355219",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 672,
+        "width": 1312,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3280,
+        -1376
+      ],
+      "id": "11ce9643-be51-492e-9584-1df89c9215be",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "",
+        "height": 912,
+        "width": 2736
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3952,
+        -672
+      ],
+      "id": "b6154899-26f5-46b9-bf20-6e643453555a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {},
+      "id": "df6231df-7c28-430a-b8fe-40ef5a7dd18d",
+      "name": "Chat Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1,
+      "position": [
+        -2864,
+        -1024
+      ],
+      "notesInFlow": false,
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "cf08da8f-08db-4f2f-873d-2305b19abf9c",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -2176,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a9a245e-f1a1-4282-bb02-a81ffe629f0f",
+              "name": "chatInput",
+              "value": "={{ $json?.chatInput || $json.body.chatInput }}",
+              "type": "string"
+            },
+            {
+              "id": "b80831d8-c653-4203-8706-adedfdb98f77",
+              "name": "sessionId",
+              "value": "={{ $json?.sessionId || $json.body.sessionId}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b4598d2b-a841-4d8b-8fc9-118b7720c334",
+      "name": "Prepare Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2992,
+        -1248
+      ]
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "id": "dc216717-29d0-4633-bb0f-73f322d8b301",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -3232,
+        -1280
+      ],
+      "webhookId": "e104e40e-6134-4825-a6f0-8a646d882662"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bf4dd093-bb02-472c-9454-7ab9af97bd1d",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a772a100-3511-49bc-b6f9-e6dd228bf4d6",
+      "name": "Webhook API",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3232,
+        -1120
+      ],
+      "webhookId": "bf4dd093-bb02-472c-9454-7ab9af97bd1d"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2992,
+        -1024
+      ],
+      "id": "d10bd9a1-957a-4110-a7de-fb3871c7c818",
+      "name": "LLM",
+      "credentials": {
+        "openRouterApi": {
+          "id": "a9ysnNwmelA3wMpm",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "# Универсальный RAG + SQL Ассистент\n\nТы — интеллектуальный ассистент для работы с базой знаний. Ты умеешь искать информацию в текстовых документах (RAG) и выполнять SQL-запросы к табличным данным (CSV, Excel).\n\n## ДОСТУПНЫЕ ИНСТРУМЕНТЫ\n\n### 1. List Documents\nПОКАЗЫВАЕТ все доступные документы и схему табличных данных.\n**ВСЕГДА начинай с этого инструмента**, если не знаешь структуру данных!\n\n### 2. Query Document Rows (SQL)\nДля табличных данных (CSV, Excel). Данные хранятся в `row_data` (JSONB).\n\n**Синтаксис:**\n```sql\nSELECT row_data->>'поле' as alias\nFROM document_rows\nWHERE row_data->>'поле' = 'значение'\n  AND (row_data->>'число')::numeric > 100\n  AND row_data->>'текст' LIKE '%подстрока%'\nORDER BY (row_data->>'поле')::numeric\nLIMIT 10;\n```\n\n**Операции:**\n- Текст: `row_data->>'поле' = 'значение'`, `LIKE '%...%'`, `ILIKE` (без учёта регистра)\n- Числа: `(row_data->>'поле')::numeric`, `::int` для сравнений и сортировки\n- Агрегация: `COUNT(*)`, `SUM()`, `AVG()`, `MAX()`, `MIN()`\n- Группировка: `GROUP BY row_data->>'поле'`\n\n### 3. RAG Search (documents)\nДля текстовых документов — поиск по смыслу. Используй для:\n- Общих вопросов, концепций, описаний\n- Поиска информации, которую сложно выразить SQL-запросом\n- FAQ, инструкций, документации\n\n### 4. Get File Contents\nПолучить весь текст конкретного документа по file_id.\n\n## СТРАТЕГИЯ ВЫБОРА ИНСТРУМЕНТА\n\n```\nВопрос пользователя\n        ↓\n┌─ Нужны конкретные данные с фильтрами? ─→ SQL\n│   (найди все X где Y > Z)\n│\n├─ Нужна агрегация/статистика? ─→ SQL\n│   (сколько всего, средняя цена, максимум)\n│\n├─ Вопрос про концепции/правила/описания? ─→ RAG\n│   (что такое, как работает, какие правила)\n│\n└─ Не знаешь структуру данных? ─→ List Documents\n```\n\n## АЛГОРИТМ РАБОТЫ\n\n1. **Понять запрос** — что именно ищет пользователь?\n2. **Проверить схему** — если не знаешь поля, вызови List Documents\n3. **Выбрать инструмент** — SQL для данных, RAG для текстов\n4. **Выполнить запрос** — построй корректный запрос\n5. **Отформатировать ответ** — покажи результаты понятно\n\n## ПРАВИЛА\n\n- **НЕ показывай технические детали** — не упоминай SQL, JSONB, row_data, условия запросов. Просто дай результат!\n- Технические детали (как искал, какой запрос использовал) — ТОЛЬКО если пользователь явно спросит\n- Если SQL не вернул результатов — попробуй смягчить условия или предложи альтернативы\n- Если RAG не нашёл — скажи честно, не выдумывай\n- Для числовых сравнений ВСЕГДА приводи тип: `(row_data->>'поле')::numeric`\n- Используй LIMIT для больших выборок\n- Отвечай на языке пользователя\n\n## ФОРМАТ ОТВЕТА\n\nПлохо:\n\"Найдено 5 записей. Поиск выполнялся с условием (row_data->>'floors')::int = 2...\"\n\nХорошо:\n\"Вот 5 подходящих вариантов:\n1. Название — цена — краткое описание\n2. ...\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -2752,
+        -1248
+      ],
+      "id": "5af1a2f8-dc3f-4980-9bca-11202017f87e",
+      "name": "RAG Agent"
+    },
+    {
+      "parameters": {
+        "model": "nomic-embed-text:latest"
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        -2192,
+        -848
+      ],
+      "id": "bbbe58a1-0963-4252-bb52-6764fdb1ca33",
+      "name": "Embeddings",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xIPiDM6BmW448qG5",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Список всех документов в базе знаний. Показывает метаданные документов: имя файла (file_name), тип (type: csv/excel/text), схему полей (schema) для табличных данных. ВСЕГДА вызывай этот инструмент первым, чтобы узнать доступные документы и структуру данных.",
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2672,
+        -1024
+      ],
+      "id": "16eac7fe-6478-4acd-90e7-67ecf52e5a55",
+      "name": "List Docs",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Получить полный текст документа по ID. Используй для чтения FAQ или описаний из базы.",
+        "operation": "executeQuery",
+        "query": "SELECT \n    string_agg(text, ' ') as document_text\nFROM documents_pg\n  WHERE metadata->>'file_id' = $1\nGROUP BY metadata->>'file_id';",
+        "options": {
+          "queryReplacement": "={{ $fromAI('file_id') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2544,
+        -1024
+      ],
+      "id": "42721b66-9803-4b05-99f3-ccdd0a2fb8c1",
+      "name": "Read Doc",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "SQL-запросы к табличным данным (CSV, Excel). Данные хранятся в таблице document_rows, поля — в колонке row_data (JSONB).\n\n**ПЕРЕД ИСПОЛЬЗОВАНИЕМ:** Вызови List Documents, чтобы узнать схему полей!\n\n**СИНТАКСИС JSONB:**\n```sql\n-- Получить текстовое поле:\nrow_data->>'имя_поля'\n\n-- Сравнение текста:\nrow_data->>'поле' = 'значение'\nrow_data->>'поле' LIKE '%подстрока%'\nrow_data->>'поле' ILIKE '%без регистра%'\n\n-- Сравнение чисел (ОБЯЗАТЕЛЬНО приведение типа!):\n(row_data->>'число')::numeric > 100\n(row_data->>'число')::int = 5\n\n-- Сортировка по числу:\nORDER BY (row_data->>'число')::numeric DESC\n```\n\n**ШАБЛОН ЗАПРОСА:**\n```sql\nSELECT \n    row_data->>'поле1' as алиас1,\n    row_data->>'поле2' as алиас2\nFROM document_rows\nWHERE row_data->>'условие' = 'значение'\n    AND (row_data->>'число')::numeric > 100\nORDER BY (row_data->>'сортировка')::numeric\nLIMIT 10;\n```\n\n**АГРЕГАЦИЯ:**\n- COUNT(*), SUM(), AVG(), MAX(), MIN()\n- GROUP BY row_data->>'поле'\n\n**СОВЕТЫ:**\n- Используй LIMIT для больших выборок\n- Для поиска подстроки: LIKE '%текст%'\n- Для поиска без учёта регистра: ILIKE",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2400,
+        -1024
+      ],
+      "id": "505974e0-e8e3-43cd-a8a6-450224ac69c5",
+      "name": "SQL Query",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "documents",
+        "toolDescription": "Семантический (векторный) поиск по текстовым документам. Используй для:\n- Вопросов о концепциях, правилах, описаниях\n- Поиска информации из FAQ, инструкций, документации\n- Запросов, которые сложно выразить точным SQL-условием\n\nНЕ используй для:\n- Поиска конкретных записей с фильтрами — для этого SQL\n- Агрегации и статистики — для этого SQL\n\nВозвращает релевантные фрагменты текста по смыслу запроса.",
+        "tableName": "documents_pg",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        -2288,
+        -1024
+      ],
+      "id": "e0d6bdf2-03bc-45ad-b0fa-15cc291a6443",
+      "name": "RAG Search",
+      "credentials": {
+        "postgres": {
+          "id": "EbeJgvGxJbetfB8O",
+          "name": "Postgres local"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Триггер: новый файл": [
+      {
+        "json": {
+          "event": "change",
+          "path": "/data/shared/Дубовый квартал – дома - PrideAIBot.csv"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Загрузчик документов": {
+      "ai_document": [
+        [
+          {
+            "node": "Векторное хранилище",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлечь текст (TXT)": {
+      "main": [
+        [
+          {
+            "node": "Векторное хранилище",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ID файла": {
+      "main": [
+        [
+          {
+            "node": "Удалить старые векторы",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлечь текст (PDF)": {
+      "main": [
+        [
+          {
+            "node": "Векторное хранилище",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Агрегация": {
+      "main": [
+        [
+          {
+            "node": "Объединить",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Объединить": {
+      "main": [
+        [
+          {
+            "node": "Установить схему",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Векторное хранилище",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Тип файла": {
+      "main": [
+        [
+          {
+            "node": "Извлечь из CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Извлечь из Excel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Извлечь текст (TXT)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Извлечь текст (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлечь из Excel": {
+      "main": [
+        [
+          {
+            "node": "Агрегация",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Сохранить строки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Установить схему": {
+      "main": [
+        [
+          {
+            "node": "Обновить схему",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Извлечь из CSV": {
+      "main": [
+        [
+          {
+            "node": "Агрегация",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Сохранить строки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Цикл по файлам": {
+      "main": [
+        [],
+        [
+          {
+            "node": "ID файла",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сохранить метаданные": {
+      "main": [
+        [
+          {
+            "node": "Прочитать файл",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Триггер: новый файл": {
+      "main": [
+        [
+          {
+            "node": "Цикл по файлам",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Прочитать файл": {
+      "main": [
+        [
+          {
+            "node": "Тип файла",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Эмбеддинги": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Векторное хранилище",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Разбиение текста": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Загрузчик документов",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Удалить старые векторы": {
+      "main": [
+        [
+          {
+            "node": "Удалить старые строки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Удалить старые строки": {
+      "main": [
+        [
+          {
+            "node": "Сохранить метаданные",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Векторное хранилище": {
+      "main": [
+        [
+          {
+            "node": "Цикл по файлам",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запуск инициализации": {
+      "main": [
+        [
+          {
+            "node": "Инициализация БД для RAG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook API": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Agent": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "RAG Search",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Docs": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Doc": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "RAG Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "adc4b459-c25e-48e7-9a27-2457f14e1954",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "36844177ec12b7d784758974af4a73853e8a399273d9db47ee733d0cbd024c09"
+  },
+  "id": "RssROpqkXOm23GYL",
+  "tags": [
+    {
+      "updatedAt": "2025-05-05T01:58:24.104Z",
+      "createdAt": "2025-05-05T01:58:24.104Z",
+      "id": "TQhE2B8hgPAxRAi1",
+      "name": "PrideAIBot"
+    }
+  ]
+}
