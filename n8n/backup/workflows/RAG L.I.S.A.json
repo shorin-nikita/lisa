@@ -1454,22 +1454,8 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
-  },
-  "versionId": "adc4b459-c25e-48e7-9a27-2457f14e1954",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "36844177ec12b7d784758974af4a73853e8a399273d9db47ee733d0cbd024c09"
-  },
-  "id": "RssROpqkXOm23GYL",
-  "tags": [
-    {
-      "updatedAt": "2025-05-05T01:58:24.104Z",
-      "createdAt": "2025-05-05T01:58:24.104Z",
-      "id": "TQhE2B8hgPAxRAi1",
-      "name": "PrideAIBot"
-    }
-  ]
+  }
 }

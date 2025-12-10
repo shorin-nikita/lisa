@@ -2195,18 +2195,5 @@
   "active": false,
   "settings": {
     "executionOrder": "v1"
-  },
-  "versionId": "faef8a0f-b934-4238-bc7a-4ef8e18f6dcb",
-  "meta": {
-    "instanceId": "0f564460b0af2e95a317a00d94a491dac5fe2cfe8859742d4f2c87a20ab9b37a"
-  },
-  "id": "jX8u6HDXqbtrqvSk",
-  "tags": [
-    {
-      "updatedAt": "2025-05-05T01:58:24.104Z",
-      "createdAt": "2025-05-05T01:58:24.104Z",
-      "id": "TQhE2B8hgPAxRAi1",
-      "name": "PrideAIBot"
-    }
-  ]
+  }
 }

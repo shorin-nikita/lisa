@@ -274,19 +274,5 @@
   "active": false,
   "settings": {
     "executionOrder": "v1"
-  },
-  "versionId": "d465e57c-5f64-41c0-aef2-a8e3cec9204c",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "23cf3188a7a78c72aa92505bbe7f3db71496fd4517b6bf7e3328ce876876cb8a"
-  },
-  "id": "0lEfCRIxMDUBeh8c",
-  "tags": [
-    {
-      "updatedAt": "2025-05-05T01:58:24.104Z",
-      "createdAt": "2025-05-05T01:58:24.104Z",
-      "id": "TQhE2B8hgPAxRAi1",
-      "name": "PrideAIBot"
-    }
-  ]
+  }
 }
