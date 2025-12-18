@@ -30,7 +30,7 @@ x-n8n: &service-n8n
     - N8N_USER_MANAGEMENT_JWT_SECRET
     - WEBHOOK_URL=${N8N_HOSTNAME:+https://}${N8N_HOSTNAME:-http://localhost:5678}
     - NODES_EXCLUDE=[]
-    - N8N_RESTRICT_FILE_ACCESS_TO=/home/node/.n8n-files:/data/shared:/backup
+    - N8N_RESTRICT_FILE_ACCESS_TO=/data/shared
 
 x-ollama: &service-ollama
   image: ollama/ollama:latest
