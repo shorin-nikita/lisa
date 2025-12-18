@@ -232,7 +232,7 @@ def collect_user_inputs():
         inputs['email'] = None
     
     print(f"\n{Colors.OKBLUE}🔐 Ключи Supabase:{Colors.ENDC}")
-    print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-api-keys{Colors.ENDC}")
+    print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-and-configure-api-keys{Colors.ENDC}")
     
     inputs['jwt_secret'] = get_supabase_key("JWT_SECRET", 32)
     inputs['anon_key'] = get_supabase_key("ANON_KEY", 100)
