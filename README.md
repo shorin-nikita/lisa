@@ -35,7 +35,7 @@
 | **[Whisper](https://github.com/fedirz/faster-whisper-server)** | Распознавание речи |
 | **[Qdrant](https://qdrant.tech/)** | Векторное хранилище |
 | **[Caddy](https://caddyserver.com/)** | Автоматический HTTPS |
-| **FFmpeg** | Обработка аудио/видео |
+| **[FFmpeg](https://ffmpeg.org/)** | Обработка аудио/видео |
 
 ---
 
