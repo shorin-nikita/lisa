@@ -301,6 +301,29 @@ docker compose -p localai down -v && python3 CTAPT.py  # Nuclear option: wipe an
 - Split files into <25MB chunks
 - Increase container memory limits
 
+### Code ноды не работают (n8n 2.0+)
+
+**Problem**: `Unknown error` или `JsTaskRunnerSandbox` в Code нодах
+
+**Cause**: n8n 2.0+ требует Task Runners для выполнения Code нод. Проверьте что в `docker-compose.yml` есть:
+```yaml
+- N8N_RUNNERS_ENABLED=true
+- N8N_RUNNERS_MODE=internal
+```
+
+**Solution**:
+```bash
+# Обновите репозиторий (получите исправленный docker-compose.yml)
+git pull origin main
+
+# Перезапустите сервисы
+docker compose -p localai down
+python3 start_services.py --profile <your-profile> --environment <your-env>
+
+# Проверьте логи — должно быть "Task Broker ready"
+docker logs n8n 2>&1 | grep -i runner
+```
+
 ## Access Ports
 
 **External (via Caddy)**:
