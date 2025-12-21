@@ -208,18 +208,12 @@ def collect_user_inputs():
         "Домен Supabase (пример: db.site.ru) или '-': ",
         validate_domain, "Некорректный домен", allow_skip=True)
 
-    inputs['webui_domain'] = get_validated_input(
-        "Домен WebUI (пример: ai.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
+    # WebUI и Ollama домены не запрашиваем — доступ только по IP
+    inputs['webui_domain'] = None
+    inputs['ollama_domain'] = None
 
-    print(f"\n{Colors.OKBLUE}🌐 Опциональные домены (введите '-' для пропуска):{Colors.ENDC}")
-    inputs['ollama_domain'] = get_validated_input(
-        "Домен Ollama (пример: ollama.site.ru) или '-': ",
-        validate_domain, "Некорректный домен", allow_skip=True)
-    
     # Email требуется только если есть хотя бы один домен
-    has_domains = any([inputs.get('n8n_domain'), inputs.get('webui_domain'), 
-                       inputs.get('supabase_domain'), inputs.get('ollama_domain')])
+    has_domains = any([inputs.get('n8n_domain'), inputs.get('supabase_domain')])
     
     if has_domains:
         print(f"\n{Colors.OKBLUE}🔒 Email для SSL сертификатов:{Colors.ENDC}")
