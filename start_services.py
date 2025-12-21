@@ -33,35 +33,43 @@ class DiskSpaceError(Exception):
 class ProgressIndicator:
     """Индикатор прогресса для длительных операций."""
 
+    UPDATE_INTERVAL = 5  # Обновление каждые 5 секунд
+
     def __init__(self, message, estimated_time=None):
         self.message = message
         self.estimated_time = estimated_time
         self.running = False
         self.thread = None
         self.start_time = None
+        self.last_print_time = 0
 
     def _spinner(self):
-        """Анимация спиннера в фоне."""
-        spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-        idx = 0
+        """Периодический вывод прогресса."""
         while self.running:
-            elapsed = int(time.time() - self.start_time)
-            elapsed_str = f"{elapsed // 60}:{elapsed % 60:02d}"
+            current_time = time.time()
+            elapsed = int(current_time - self.start_time)
 
-            if self.estimated_time:
-                remaining = max(0, self.estimated_time - elapsed)
-                remaining_str = f"~{remaining // 60}:{remaining % 60:02d} осталось"
-                print(f"\r   {spinner_chars[idx]} {self.message} [{elapsed_str}] {remaining_str}    ", end="", flush=True)
-            else:
-                print(f"\r   {spinner_chars[idx]} {self.message} [{elapsed_str}]    ", end="", flush=True)
+            # Печатаем только каждые UPDATE_INTERVAL секунд
+            if current_time - self.last_print_time >= self.UPDATE_INTERVAL:
+                self.last_print_time = current_time
+                elapsed_str = f"{elapsed // 60}:{elapsed % 60:02d}"
 
-            idx = (idx + 1) % len(spinner_chars)
-            time.sleep(0.1)
+                if self.estimated_time:
+                    remaining = max(0, self.estimated_time - elapsed)
+                    remaining_str = f"~{remaining // 60}:{remaining % 60:02d} осталось"
+                    print(f"   ⏳ {self.message} [{elapsed_str}] {remaining_str}")
+                else:
+                    print(f"   ⏳ {self.message} [{elapsed_str}]")
+
+            time.sleep(1)
 
     def start(self):
         """Запуск индикатора."""
         self.running = True
         self.start_time = time.time()
+        self.last_print_time = self.start_time
+        # Печатаем начальное сообщение сразу
+        print(f"   ⏳ {self.message} [0:00] ~{self.estimated_time // 60}:{self.estimated_time % 60:02d} осталось" if self.estimated_time else f"   ⏳ {self.message} [0:00]")
         self.thread = threading.Thread(target=self._spinner, daemon=True)
         self.thread.start()
 
@@ -73,7 +81,7 @@ class ProgressIndicator:
         elapsed = int(time.time() - self.start_time)
         elapsed_str = f"{elapsed // 60}:{elapsed % 60:02d}"
         icon = "✅" if success else "❌"
-        print(f"\r   {icon} {self.message} [{elapsed_str}]                              ")
+        print(f"   {icon} {self.message} — завершено [{elapsed_str}]")
 
 
 def print_step(step_num, total_steps, message, estimated_time=None):
@@ -624,14 +632,14 @@ def start_supabase(environment=None):
     print("🗄️  ЗАПУСК SUPABASE")
     print("="*65)
     print("   ℹ️  Запускается полный стек Supabase (PostgreSQL, Auth, Storage...)")
-    print("   ⏱️  Ожидаемое время: 1-2 минуты\n")
+    print("   ⏱️  Ожидаемое время: 2-3 минуты\n")
 
     cmd = ["docker", "compose", "-p", "localai", "-f", "supabase/docker/docker-compose.yml"]
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.supabase.yml"])
     cmd.extend(["up", "-d"])
 
-    progress = ProgressIndicator("Запуск Supabase", estimated_time=90)
+    progress = ProgressIndicator("Запуск Supabase", estimated_time=180)
     progress.start()
     try:
         run_docker_compose_with_retry(cmd)
@@ -680,7 +688,7 @@ def start_local_ai(profile=None, environment=None):
     print("🔧 СБОРКА КАСТОМНЫХ ОБРАЗОВ")
     print("="*65)
     print("   ℹ️  Собираем N8N с поддержкой FFmpeg")
-    print("   ⏱️  Ожидаемое время: 1-3 минуты\n")
+    print("   ⏱️  Ожидаемое время: 2-4 минуты\n")
 
     # Сначала собираем образы, которые требуют сборки
     build_cmd = ["docker", "compose", "-p", "localai"]
@@ -693,7 +701,7 @@ def start_local_ai(profile=None, environment=None):
         build_cmd.extend(["-f", "docker-compose.override.public.yml"])
     build_cmd.extend(["build"])
 
-    progress = ProgressIndicator("Сборка N8N + FFmpeg", estimated_time=120)
+    progress = ProgressIndicator("Сборка N8N + FFmpeg", estimated_time=240)
     progress.start()
     try:
         result = subprocess.run(build_cmd, capture_output=True, text=True)
@@ -723,7 +731,7 @@ def start_local_ai(profile=None, environment=None):
         cmd.extend(["-f", "docker-compose.override.public.yml"])
     cmd.extend(["up", "-d", "--pull", "never"])
 
-    progress = ProgressIndicator("Запуск контейнеров", estimated_time=90)
+    progress = ProgressIndicator("Запуск контейнеров", estimated_time=120)
     progress.start()
     try:
         run_docker_compose_with_retry(cmd)
@@ -850,16 +858,11 @@ def main():
             print(f"\n❌ Установка прервана: PostgreSQL не запустился")
             sys.exit(1)
 
-        # Успешное завершение
+        # Успешное завершение — итоговое сообщение выводит CTAPT.py
         total_time = int(time.time() - install_start_time)
         mins = total_time // 60
         secs = total_time % 60
-
-        print("\n" + "="*65)
-        print("🎉 УСТАНОВКА УСПЕШНО ЗАВЕРШЕНА!")
-        print("="*65)
-        print(f"   ⏱️  Общее время установки: {mins} мин {secs} сек")
-        print("="*65 + "\n")
+        print(f"\n   ⏱️  Сервисы запущены за {mins} мин {secs} сек\n")
 
     except DiskSpaceError:
         print_disk_space_recommendations()
