@@ -15,6 +15,7 @@ import argparse
 import platform
 import sys
 import re
+import threading
 
 # Коды ошибок
 EXIT_CODE_DISK_SPACE = 14
@@ -23,6 +24,87 @@ EXIT_CODE_DISK_SPACE = 14
 class DiskSpaceError(Exception):
     """Ошибка нехватки места на диске."""
     pass
+
+
+# ============================================================================
+# PROGRESS INDICATORS - Показывают пользователю, что система работает
+# ============================================================================
+
+class ProgressIndicator:
+    """Индикатор прогресса для длительных операций."""
+
+    def __init__(self, message, estimated_time=None):
+        self.message = message
+        self.estimated_time = estimated_time
+        self.running = False
+        self.thread = None
+        self.start_time = None
+
+    def _spinner(self):
+        """Анимация спиннера в фоне."""
+        spinner_chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        idx = 0
+        while self.running:
+            elapsed = int(time.time() - self.start_time)
+            elapsed_str = f"{elapsed // 60}:{elapsed % 60:02d}"
+
+            if self.estimated_time:
+                remaining = max(0, self.estimated_time - elapsed)
+                remaining_str = f"~{remaining // 60}:{remaining % 60:02d} осталось"
+                print(f"\r   {spinner_chars[idx]} {self.message} [{elapsed_str}] {remaining_str}    ", end="", flush=True)
+            else:
+                print(f"\r   {spinner_chars[idx]} {self.message} [{elapsed_str}]    ", end="", flush=True)
+
+            idx = (idx + 1) % len(spinner_chars)
+            time.sleep(0.1)
+
+    def start(self):
+        """Запуск индикатора."""
+        self.running = True
+        self.start_time = time.time()
+        self.thread = threading.Thread(target=self._spinner, daemon=True)
+        self.thread.start()
+
+    def stop(self, success=True):
+        """Остановка индикатора."""
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=0.5)
+        elapsed = int(time.time() - self.start_time)
+        elapsed_str = f"{elapsed // 60}:{elapsed % 60:02d}"
+        icon = "✅" if success else "❌"
+        print(f"\r   {icon} {self.message} [{elapsed_str}]                              ")
+
+
+def print_step(step_num, total_steps, message, estimated_time=None):
+    """Печать шага установки с прогрессом."""
+    percent = int((step_num / total_steps) * 100)
+    bar_width = 20
+    filled = int(bar_width * step_num / total_steps)
+    bar = "█" * filled + "░" * (bar_width - filled)
+
+    print(f"\n{'='*65}")
+    print(f"📦 [{bar}] {percent}% — Шаг {step_num}/{total_steps}")
+    print(f"   {message}")
+    if estimated_time:
+        print(f"   ⏱️  Ожидаемое время: {estimated_time}")
+    print(f"{'='*65}\n")
+
+
+def print_wait_countdown(message, seconds):
+    """Показывает обратный отсчёт ожидания."""
+    print(f"\n⏳ {message}")
+    for remaining in range(seconds, 0, -1):
+        mins = remaining // 60
+        secs = remaining % 60
+        if mins > 0:
+            time_str = f"{mins}:{secs:02d}"
+        else:
+            time_str = f"{secs} сек"
+        print(f"\r   ⏳ Осталось: {time_str}   ", end="", flush=True)
+        time.sleep(1)
+    print(f"\r   ✅ {message} — готово!                    ")
+
 
 def run_command(cmd, cwd=None):
     """Run a shell command and print it."""
@@ -424,27 +506,45 @@ def update_env_with_resources(cpu_count, mem_gb):
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""
     supabase_compose_file = os.path.join("supabase", "docker", "docker-compose.yml")
-    
+
     if not os.path.exists("supabase"):
-        print("Cloning the Supabase repository...")
-        run_command([
-            "git", "clone", "--filter=blob:none", "--no-checkout",
-            "https://github.com/supabase/supabase.git"
-        ])
-        os.chdir("supabase")
-        run_command(["git", "sparse-checkout", "init", "--cone"])
-        run_command(["git", "sparse-checkout", "set", "docker"])
-        run_command(["git", "checkout", "master"])
-        os.chdir("..")
+        print("\n📥 Клонирование репозитория Supabase...")
+        print("   ℹ️  Это может занять 2-5 минут в зависимости от скорости интернета")
+        print("   ℹ️  Загружается ~200MB (только папка docker/, не весь репозиторий)\n")
+
+        progress = ProgressIndicator("Клонирование Supabase", estimated_time=180)
+        progress.start()
+        try:
+            subprocess.run([
+                "git", "clone", "--filter=blob:none", "--no-checkout",
+                "https://github.com/supabase/supabase.git"
+            ], check=True, capture_output=True)
+            os.chdir("supabase")
+            subprocess.run(["git", "sparse-checkout", "init", "--cone"], check=True, capture_output=True)
+            subprocess.run(["git", "sparse-checkout", "set", "docker"], check=True, capture_output=True)
+            subprocess.run(["git", "checkout", "master"], check=True, capture_output=True)
+            os.chdir("..")
+            progress.stop(success=True)
+        except subprocess.CalledProcessError as e:
+            progress.stop(success=False)
+            raise e
+
     elif not os.path.exists(supabase_compose_file):
         print("Supabase repository exists but files missing, re-checking out...")
-        os.chdir("supabase")
-        run_command(["git", "sparse-checkout", "init", "--cone"])
-        run_command(["git", "sparse-checkout", "set", "docker"])
-        run_command(["git", "checkout", "master"])
-        os.chdir("..")
+        progress = ProgressIndicator("Восстановление файлов Supabase", estimated_time=60)
+        progress.start()
+        try:
+            os.chdir("supabase")
+            subprocess.run(["git", "sparse-checkout", "init", "--cone"], check=True, capture_output=True)
+            subprocess.run(["git", "sparse-checkout", "set", "docker"], check=True, capture_output=True)
+            subprocess.run(["git", "checkout", "master"], check=True, capture_output=True)
+            os.chdir("..")
+            progress.stop(success=True)
+        except subprocess.CalledProcessError as e:
+            progress.stop(success=False)
+            raise e
     else:
-        print("Supabase repository already exists and configured.")
+        print("✅ Репозиторий Supabase уже настроен")
 
 def prepare_shared_directory():
     """Create shared directory with proper permissions for N8N and other services."""
@@ -520,19 +620,38 @@ def stop_existing_containers(profile=None):
 
 def start_supabase(environment=None):
     """Start the Supabase services (using its compose file)."""
-    print("Starting Supabase services...")
+    print("\n" + "="*65)
+    print("🗄️  ЗАПУСК SUPABASE")
+    print("="*65)
+    print("   ℹ️  Запускается полный стек Supabase (PostgreSQL, Auth, Storage...)")
+    print("   ⏱️  Ожидаемое время: 1-2 минуты\n")
+
     cmd = ["docker", "compose", "-p", "localai", "-f", "supabase/docker/docker-compose.yml"]
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.supabase.yml"])
     cmd.extend(["up", "-d"])
-    run_docker_compose_with_retry(cmd)
+
+    progress = ProgressIndicator("Запуск Supabase", estimated_time=90)
+    progress.start()
+    try:
+        run_docker_compose_with_retry(cmd)
+        progress.stop(success=True)
+    except Exception as e:
+        progress.stop(success=False)
+        raise e
 
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
-    print("🚀 Запуск системы...")
 
     # Загружаем базовые образы (postgres, redis, whisper и др.), игнорируя локально-собираемые
-    print("\n📥 Загружаем базовые образы Docker...\n")
+    print("\n" + "="*65)
+    print("📥 ЗАГРУЗКА DOCKER ОБРАЗОВ")
+    print("="*65)
+    print("   ℹ️  Это самая долгая часть установки!")
+    print("   ℹ️  Загружается ~5-10GB образов (Ollama, PostgreSQL, Redis и др.)")
+    print("   ⏱️  Ожидаемое время: 5-15 минут (зависит от интернета)")
+    print("   ⚠️  НЕ ПРЕРЫВАЙТЕ ПРОЦЕСС — система работает!\n")
+
     pull_cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         pull_cmd.extend(["--profile", profile])
@@ -543,13 +662,25 @@ def start_local_ai(profile=None, environment=None):
         pull_cmd.extend(["-f", "docker-compose.override.public.yml"])
     pull_cmd.extend(["pull", "--ignore-buildable"])
 
+    progress = ProgressIndicator("Загрузка Docker образов", estimated_time=600)
+    progress.start()
     try:
-        run_docker_compose_with_retry(pull_cmd)
+        result = subprocess.run(pull_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            progress.stop(success=False)
+            print(f"⚠️  Некоторые образы не загружены, продолжаем...")
+        else:
+            progress.stop(success=True)
     except subprocess.CalledProcessError as e:
+        progress.stop(success=False)
         print(f"⚠️  Некоторые образы не загружены (код: {e.returncode}), продолжаем...")
 
     # Собираем кастомные образы (n8n-ffmpeg)
-    print("\n📦 Собираем образы (если нужно)...\n")
+    print("\n" + "="*65)
+    print("🔧 СБОРКА КАСТОМНЫХ ОБРАЗОВ")
+    print("="*65)
+    print("   ℹ️  Собираем N8N с поддержкой FFmpeg")
+    print("   ⏱️  Ожидаемое время: 1-3 минуты\n")
 
     # Сначала собираем образы, которые требуют сборки
     build_cmd = ["docker", "compose", "-p", "localai"]
@@ -562,14 +693,25 @@ def start_local_ai(profile=None, environment=None):
         build_cmd.extend(["-f", "docker-compose.override.public.yml"])
     build_cmd.extend(["build"])
 
+    progress = ProgressIndicator("Сборка N8N + FFmpeg", estimated_time=120)
+    progress.start()
     try:
-        run_docker_compose_with_retry(build_cmd)
+        result = subprocess.run(build_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            progress.stop(success=False)
+            print(f"⚠️  Предупреждение при сборке, продолжаем...")
+        else:
+            progress.stop(success=True)
     except subprocess.CalledProcessError as e:
-        # Если сборка не удалась, но образ уже существует, продолжаем
+        progress.stop(success=False)
         print(f"⚠️  Предупреждение при сборке образов (код: {e.returncode})")
         print(f"   Продолжаем запуск контейнеров...\n")
 
-    print("\n📦 Запускаем сервисы...\n")
+    print("\n" + "="*65)
+    print("🚀 ЗАПУСК КОНТЕЙНЕРОВ")
+    print("="*65)
+    print("   ℹ️  Запускаются все сервисы Л.И.С.А.")
+    print("   ⏱️  Ожидаемое время: 1-2 минуты\n")
 
     cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
@@ -581,9 +723,13 @@ def start_local_ai(profile=None, environment=None):
         cmd.extend(["-f", "docker-compose.override.public.yml"])
     cmd.extend(["up", "-d", "--pull", "never"])
 
+    progress = ProgressIndicator("Запуск контейнеров", estimated_time=90)
+    progress.start()
     try:
         run_docker_compose_with_retry(cmd)
+        progress.stop(success=True)
     except subprocess.CalledProcessError as e:
+        progress.stop(success=False)
         print(f"\n❌ Ошибка запуска LocalAI стека")
         print(f"Проверяем логи проблемных контейнеров...")
         
@@ -608,28 +754,42 @@ def start_local_ai(profile=None, environment=None):
 
 def wait_for_postgres_healthy(timeout=120):
     """Ожидание готовности PostgreSQL контейнера."""
-    print(f"Ожидание готовности PostgreSQL (до {timeout} сек)...")
-    
+    print("\n" + "="*65)
+    print("⏳ ОЖИДАНИЕ ГОТОВНОСТИ POSTGRESQL")
+    print("="*65)
+    print("   ℹ️  PostgreSQL инициализирует базы данных")
+    print(f"   ⏱️  Максимальное время ожидания: {timeout // 60} минуты\n")
+
     start_time = time.time()
+    check_interval = 5  # секунд между проверками
+
     while time.time() - start_time < timeout:
+        elapsed = int(time.time() - start_time)
+        remaining = timeout - elapsed
+
         try:
             result = subprocess.run(
                 ["docker", "inspect", "--format", "{{.State.Health.Status}}", "localai-postgres-1"],
                 capture_output=True, text=True, check=False
             )
             status = result.stdout.strip()
-            
+
             if status == "healthy":
-                print(f"✅ PostgreSQL готов к работе")
+                print(f"\r   ✅ PostgreSQL готов к работе! [{elapsed} сек]                    ")
                 return True
-            
-            print(f"   PostgreSQL статус: {status}, ожидание...")
-            time.sleep(5)
+
+            # Показываем статус с оставшимся временем
+            mins = remaining // 60
+            secs = remaining % 60
+            status_display = status if status else "запускается"
+            print(f"\r   ⏳ PostgreSQL: {status_display} | Осталось: {mins}:{secs:02d}   ", end="", flush=True)
+            time.sleep(check_interval)
+
         except Exception as e:
-            print(f"   Проверка статуса: {e}")
-            time.sleep(5)
-    
-    print(f"❌ PostgreSQL не стал healthy за {timeout} секунд")
+            print(f"\r   ⏳ Ожидание PostgreSQL... [{elapsed} сек]   ", end="", flush=True)
+            time.sleep(check_interval)
+
+    print(f"\n❌ PostgreSQL не стал healthy за {timeout} секунд")
     return False
 
 def main():
@@ -640,35 +800,66 @@ def main():
                       help='Environment to use for Docker Compose (default: private)')
     args = parser.parse_args()
 
+    # Общее время установки для информирования пользователя
+    install_start_time = time.time()
+
+    print("\n" + "="*65)
+    print("🚀 УСТАНОВКА Л.И.С.А.")
+    print("="*65)
+    print("   ℹ️  Полная установка занимает 10-20 минут")
+    print("   ℹ️  Большая часть времени — загрузка Docker образов")
+    print("   ⚠️  НЕ ПРЕРЫВАЙТЕ ПРОЦЕСС, даже если кажется, что он завис!")
+    print("="*65)
+
     try:
-        # Validate .env file before starting
+        # ШАГ 1: Валидация
+        print_step(1, 7, "Проверка конфигурации", "несколько секунд")
         if not validate_env_file():
             sys.exit(1)
 
-        # Настройка лимитов ресурсов перед запуском
+        # ШАГ 2: Настройка ресурсов
+        print_step(2, 7, "Настройка системных ресурсов", "несколько секунд")
         cpu_count, mem_gb = get_system_resources()
         update_env_with_resources(cpu_count, mem_gb)
 
         prepare_shared_directory()
+
+        # ШАГ 3: Клонирование Supabase
+        print_step(3, 7, "Подготовка репозитория Supabase", "2-5 минут (первый запуск)")
         clone_supabase_repo()
         prepare_supabase_env()
 
+        # ШАГ 4: Остановка старых контейнеров
+        print_step(4, 7, "Очистка предыдущих контейнеров", "несколько секунд")
         stop_existing_containers(args.profile)
 
-        # Start Supabase first
+        # ШАГ 5: Запуск Supabase
+        print_step(5, 7, "Запуск Supabase (база данных)", "1-2 минуты")
         start_supabase(args.environment)
 
-        # Give Supabase some time to initialize
-        print("Waiting for Supabase to initialize...")
-        time.sleep(30)
+        # Ожидание инициализации Supabase с обратным отсчётом
+        print_wait_countdown("Инициализация Supabase", 30)
 
-        # Start the local AI services
+        # ШАГ 6: Запуск AI сервисов (самый долгий этап)
+        print_step(6, 7, "Запуск AI сервисов (Ollama, N8N, Whisper...)", "5-15 минут")
         start_local_ai(args.profile, args.environment)
 
-        # Ожидание критичных сервисов
+        # ШАГ 7: Финальная проверка
+        print_step(7, 7, "Финальная проверка готовности", "до 2 минут")
         if not wait_for_postgres_healthy():
             print(f"\n❌ Установка прервана: PostgreSQL не запустился")
             sys.exit(1)
+
+        # Успешное завершение
+        total_time = int(time.time() - install_start_time)
+        mins = total_time // 60
+        secs = total_time % 60
+
+        print("\n" + "="*65)
+        print("🎉 УСТАНОВКА УСПЕШНО ЗАВЕРШЕНА!")
+        print("="*65)
+        print(f"   ⏱️  Общее время установки: {mins} мин {secs} сек")
+        print("="*65 + "\n")
 
     except DiskSpaceError:
         print_disk_space_recommendations()
