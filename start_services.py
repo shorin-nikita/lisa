@@ -397,6 +397,50 @@ def run_docker_compose_with_retry(cmd, max_retries=3):
 
     return False
 
+def generate_secret_key(length=32):
+    """Генерация криптографически безопасного секрета."""
+    import secrets
+    return secrets.token_hex(length)
+
+
+def ensure_runners_auth_token():
+    """
+    Проверяет и добавляет N8N_RUNNERS_AUTH_TOKEN в .env если его нет.
+    Это необходимо для External Mode Task Runners в n8n 2.0+.
+    """
+    if not os.path.exists('.env'):
+        return
+
+    with open('.env', 'r') as f:
+        env_content = f.read()
+
+    if 'N8N_RUNNERS_AUTH_TOKEN=' in env_content:
+        return  # Токен уже есть
+
+    # Генерируем и добавляем токен
+    runners_token = generate_secret_key(32)
+
+    lines = env_content.split('\n')
+    new_lines = []
+    token_added = False
+
+    for line in lines:
+        new_lines.append(line)
+        if line.startswith('N8N_USER_MANAGEMENT_JWT_SECRET=') and not token_added:
+            new_lines.append('')
+            new_lines.append('# Task Runners (External Mode) - обязательно для n8n 2.0+')
+            new_lines.append(f'N8N_RUNNERS_AUTH_TOKEN={runners_token}')
+            token_added = True
+
+    if not token_added:
+        new_lines.insert(0, f'N8N_RUNNERS_AUTH_TOKEN={runners_token}')
+
+    with open('.env', 'w') as f:
+        f.write('\n'.join(new_lines))
+
+    print("✅ Добавлен N8N_RUNNERS_AUTH_TOKEN для Task Runners")
+
+
 def validate_env_file():
     """Проверка наличия и корректности .env файла."""
     if not os.path.exists('.env'):
@@ -404,11 +448,15 @@ def validate_env_file():
         print("Запустите сначала: python3 CTAPT.py")
         return False
 
+    # Автоматически добавляем N8N_RUNNERS_AUTH_TOKEN если его нет
+    ensure_runners_auth_token()
+
     # Базовые переменные (обязательны всегда)
     required_vars = [
         'POSTGRES_PASSWORD',
         'N8N_ENCRYPTION_KEY',
-        'JWT_SECRET'
+        'JWT_SECRET',
+        'N8N_RUNNERS_AUTH_TOKEN'  # Обязателен для External Mode
     ]
 
     missing_vars = []
@@ -424,6 +472,22 @@ def validate_env_file():
 
     print(f"✅ Файл .env валиден")
     return True
+
+def is_proxy_enabled():
+    """Проверка включен ли прокси в .env файле."""
+    if not os.path.exists('.env'):
+        return False
+
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.strip().startswith('PROXY_ENABLED='):
+                    value = line.split('=', 1)[1].strip().lower()
+                    return value == 'true'
+    except:
+        pass
+
+    return False
 
 def get_system_resources():
     """Получение информации о ресурсах системы"""
@@ -446,37 +510,49 @@ def get_system_resources():
         return 2, 8  # Минимальные значения по умолчанию
 
 def update_env_with_resources(cpu_count, mem_gb):
-    """Обновление .env файла с рекомендованными лимитами ресурсов"""
+    """
+    Обновление .env файла с рекомендованными лимитами ресурсов.
+
+    Распределение памяти для 8GB RAM:
+    - Ollama: 2.5GB (30%) — для LLM моделей
+    - PostgreSQL: 1.5GB (18%) — для Supabase
+    - N8N: 1GB (12%) — основной процесс
+    - N8N Runners: 768MB (9%) — выполнение Code нод (JS + Python)
+    - Qdrant: 512MB (6%) — векторное хранилище
+    - Whisper: 512MB (6%) — распознавание речи
+    - Остальное: ~1GB на систему и буфер
+    """
     if not os.path.exists('.env'):
         return
-    
-    # Рассчитываем лимиты (консервативные значения для маломощных серверов)
-    # Для систем с 2 CPU / 8GB RAM используем консервативные значения
-    ollama_cpu = max(1, min(int(cpu_count * 0.5), cpu_count - 1))  # Не более половины, но минимум 1
-    ollama_mem = max(2, int(mem_gb * 0.3))
-    
-    postgres_cpu = max(1, min(int(cpu_count * 0.3), cpu_count - 1))
-    postgres_mem = max(1, int(mem_gb * 0.2))
-    
+
+    # Рассчитываем лимиты (оптимизировано для 8GB RAM)
+    ollama_cpu = max(1, min(int(cpu_count * 0.5), cpu_count - 1))
+    ollama_mem = max(2, int(mem_gb * 0.30))  # 2.4GB для 8GB
+
+    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
+    postgres_mem = max(1, int(mem_gb * 0.18))  # 1.4GB для 8GB
+
     n8n_cpu = max(0.5, min(int(cpu_count * 0.2), cpu_count - 1))
-    n8n_mem = max(1, int(mem_gb * 0.15))
-    
-    qdrant_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
-    qdrant_mem = max(1, int(mem_gb * 0.1))
-    
-    webui_cpu = max(0.5, min(int(cpu_count * 0.1), cpu_count - 1))
-    webui_mem = max(1, int(mem_gb * 0.1))
-    
+    n8n_mem = max(1, int(mem_gb * 0.12))  # ~1GB для 8GB
+
+    # N8N Runners — отдельный контейнер для Code нод
+    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
+    runners_mem_mb = max(512, int(mem_gb * 0.09 * 1024))  # ~768MB для 8GB
+
+    qdrant_cpu = max(0.25, min(int(cpu_count * 0.1), cpu_count - 1))
+    qdrant_mem_mb = max(256, int(mem_gb * 0.06 * 1024))  # ~512MB для 8GB
+
     # Читаем .env
     with open('.env', 'r') as f:
         lines = f.readlines()
-    
+
     # Проверяем, есть ли уже эти переменные
     env_content = ''.join(lines)
     if 'OLLAMA_CPU_LIMIT' not in env_content:
         from datetime import datetime
         resource_vars = [
             f"\n# Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})\n",
+            f"# Оптимизировано для {mem_gb}GB RAM\n",
             f"OLLAMA_CPU_LIMIT={ollama_cpu}\n",
             f"OLLAMA_MEM_LIMIT={ollama_mem}G\n",
             f"OLLAMA_CPU_RESERVE={max(0.5, ollama_cpu / 2)}\n",
@@ -488,28 +564,29 @@ def update_env_with_resources(cpu_count, mem_gb):
             f"N8N_CPU_LIMIT={n8n_cpu}\n",
             f"N8N_MEM_LIMIT={n8n_mem}G\n",
             f"N8N_CPU_RESERVE={max(0.25, n8n_cpu / 2)}\n",
-            f"N8N_MEM_RESERVE={n8n_mem // 2}G\n",
+            f"N8N_MEM_RESERVE={max(512, n8n_mem * 512)}M\n",
+            f"# N8N Task Runners (External Mode)\n",
+            f"N8N_RUNNERS_CPU_LIMIT={runners_cpu}\n",
+            f"N8N_RUNNERS_MEM_LIMIT={runners_mem_mb}M\n",
+            f"N8N_RUNNERS_CPU_RESERVE=0.25\n",
+            f"N8N_RUNNERS_MEM_RESERVE={runners_mem_mb // 2}M\n",
             f"QDRANT_CPU_LIMIT={qdrant_cpu}\n",
-            f"QDRANT_MEM_LIMIT={qdrant_mem}G\n",
-            f"QDRANT_CPU_RESERVE=0.5\n",
-            f"QDRANT_MEM_RESERVE=1G\n",
-            f"WEBUI_CPU_LIMIT={webui_cpu}\n",
-            f"WEBUI_MEM_LIMIT={webui_mem}G\n",
-            f"WEBUI_CPU_RESERVE=0.5\n",
-            f"WEBUI_MEM_RESERVE=1G\n",
+            f"QDRANT_MEM_LIMIT={qdrant_mem_mb}M\n",
+            f"QDRANT_CPU_RESERVE=0.25\n",
+            f"QDRANT_MEM_RESERVE={qdrant_mem_mb // 2}M\n",
         ]
-        
+
         lines.extend(resource_vars)
-        
+
         with open('.env', 'w') as f:
             f.writelines(lines)
-        
-        print(f"✅ Лимиты ресурсов настроены автоматически:")
+
+        print(f"✅ Лимиты ресурсов настроены для {mem_gb}GB RAM:")
         print(f"   Ollama: {ollama_cpu} CPU, {ollama_mem}G RAM")
         print(f"   PostgreSQL: {postgres_cpu} CPU, {postgres_mem}G RAM")
         print(f"   N8N: {n8n_cpu} CPU, {n8n_mem}G RAM")
-        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem}G RAM")
-        print(f"   WebUI: {webui_cpu} CPU, {webui_mem}G RAM")
+        print(f"   N8N Runners: {runners_cpu} CPU, {runners_mem_mb}M RAM")
+        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem_mb}M RAM")
 
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""
@@ -579,8 +656,8 @@ def cleanup_orphaned_containers():
     """
     # Список контейнеров, которые могут остаться после неудачного запуска
     known_containers = [
-        "n8n", "n8n-import", "ollama", "ollama-pull-models",
-        "whisper", "qdrant", "redis", "caddy", "open-webui",
+        "n8n", "n8n-import", "n8n-runners", "ollama", "ollama-pull-models",
+        "whisper", "qdrant", "redis", "caddy", "squid",
         "localai-postgres-1"
     ]
 
@@ -651,6 +728,11 @@ def start_supabase(environment=None):
 def start_local_ai(profile=None, environment=None):
     """Start the local AI services (using its compose file)."""
 
+    # Check if proxy is enabled
+    proxy_enabled = is_proxy_enabled()
+    if proxy_enabled:
+        print("🌐 Прокси включен — Squid будет запущен")
+
     # Загружаем базовые образы (postgres, redis, whisper и др.), игнорируя локально-собираемые
     print("\n" + "="*65)
     print("📥 ЗАГРУЗКА DOCKER ОБРАЗОВ")
@@ -663,6 +745,8 @@ def start_local_ai(profile=None, environment=None):
     pull_cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         pull_cmd.extend(["--profile", profile])
+    if proxy_enabled:
+        pull_cmd.extend(["--profile", "proxy"])
     pull_cmd.extend(["-f", "docker-compose.yml"])
     if environment and environment == "private":
         pull_cmd.extend(["-f", "docker-compose.override.private.yml"])
@@ -694,6 +778,8 @@ def start_local_ai(profile=None, environment=None):
     build_cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         build_cmd.extend(["--profile", profile])
+    if proxy_enabled:
+        build_cmd.extend(["--profile", "proxy"])
     build_cmd.extend(["-f", "docker-compose.yml"])
     if environment and environment == "private":
         build_cmd.extend(["-f", "docker-compose.override.private.yml"])
@@ -724,6 +810,8 @@ def start_local_ai(profile=None, environment=None):
     cmd = ["docker", "compose", "-p", "localai"]
     if profile and profile != "none":
         cmd.extend(["--profile", profile])
+    if proxy_enabled:
+        cmd.extend(["--profile", "proxy"])
     cmd.extend(["-f", "docker-compose.yml"])
     if environment and environment == "private":
         cmd.extend(["-f", "docker-compose.override.private.yml"])

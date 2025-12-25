@@ -13,10 +13,8 @@ import subprocess
 import platform
 import sys
 import shutil
+import secrets
 from datetime import datetime
-
-# Коды ошибок
-EXIT_CODE_DISK_SPACE = 14
 
 # Цвета для вывода
 class Colors:
@@ -28,106 +26,6 @@ class Colors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
     BOLD = '\033[1m'
-
-
-def is_disk_space_error(output):
-    """
-    Проверка на ошибку нехватки места на диске.
-    """
-    if not output:
-        return False
-    output_lower = output.lower()
-    return "no space left on device" in output_lower
-
-
-def get_disk_usage_info():
-    """Получение информации об использовании диска."""
-    info = {}
-    try:
-        result = subprocess.run(
-            ["df", "-h", "/var/lib/docker"],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')
-            if len(lines) > 1:
-                parts = lines[1].split()
-                if len(parts) >= 5:
-                    info['docker_disk'] = {
-                        'total': parts[1],
-                        'used': parts[2],
-                        'available': parts[3],
-                        'use_percent': parts[4]
-                    }
-    except:
-        pass
-
-    try:
-        result = subprocess.run(
-            ["docker", "system", "df"],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            info['docker_system'] = result.stdout
-    except:
-        pass
-
-    return info
-
-
-def print_disk_space_recommendations():
-    """Вывод рекомендаций по освобождению места на диске (безопасные для данных)."""
-    print(f"\n{Colors.FAIL}{'=' * 65}")
-    print(f"❌ ОШИБКА: Недостаточно места на диске (код {EXIT_CODE_DISK_SPACE})")
-    print(f"{'=' * 65}{Colors.ENDC}")
-
-    # Показываем информацию о диске
-    info = get_disk_usage_info()
-    if 'docker_disk' in info:
-        d = info['docker_disk']
-        print(f"\n{Colors.OKCYAN}📊 Состояние диска Docker:{Colors.ENDC}")
-        print(f"   Всего: {d['total']}, Использовано: {d['used']}, Свободно: {d['available']} ({d['use_percent']})")
-
-    if 'docker_system' in info:
-        print(f"\n{Colors.OKCYAN}📦 Использование Docker:{Colors.ENDC}")
-        for line in info['docker_system'].strip().split('\n')[:5]:
-            print(f"   {line}")
-
-    print(f"\n{Colors.WARNING}{'-' * 65}")
-    print(f"🔧 РЕКОМЕНДАЦИИ ПО ОСВОБОЖДЕНИЮ МЕСТА (безопасные для данных):")
-    print(f"{'-' * 65}{Colors.ENDC}")
-
-    print(f"""
-{Colors.OKGREEN}1.{Colors.ENDC} Удалить неиспользуемые Docker образы (НЕ удаляет volumes с данными):
-   {Colors.OKCYAN}docker image prune -a{Colors.ENDC}
-
-{Colors.OKGREEN}2.{Colors.ENDC} Удалить остановленные контейнеры:
-   {Colors.OKCYAN}docker container prune{Colors.ENDC}
-
-{Colors.OKGREEN}3.{Colors.ENDC} Удалить кэш сборки Docker:
-   {Colors.OKCYAN}docker builder prune{Colors.ENDC}
-
-{Colors.OKGREEN}4.{Colors.ENDC} Комплексная очистка БЕЗ удаления volumes (сохраняет данные):
-   {Colors.OKCYAN}docker system prune -a{Colors.ENDC}
-
-   {Colors.FAIL}⚠️  НЕ используйте флаг --volumes, это удалит данные!{Colors.ENDC}
-
-{Colors.OKGREEN}5.{Colors.ENDC} Проверить что занимает место:
-   {Colors.OKCYAN}du -sh /var/lib/docker/*{Colors.ENDC}
-   {Colors.OKCYAN}docker system df -v{Colors.ENDC}
-
-{Colors.OKGREEN}6.{Colors.ENDC} Удалить старые логи Docker:
-   {Colors.OKCYAN}sudo sh -c 'truncate -s 0 /var/lib/docker/containers/*/*-json.log'{Colors.ENDC}
-
-{Colors.OKGREEN}7.{Colors.ENDC} Если используется журнал systemd:
-   {Colors.OKCYAN}sudo journalctl --vacuum-size=100M{Colors.ENDC}
-""")
-
-    print(f"{Colors.WARNING}{'-' * 65}{Colors.ENDC}")
-    print(f"После освобождения места запустите обновление повторно:")
-    print(f"   {Colors.OKCYAN}python3 O6HOBA.py{Colors.ENDC}")
-    print(f"{Colors.FAIL}{'=' * 65}{Colors.ENDC}\n")
-
 
 def print_header():
     print(f"""{Colors.HEADER}{Colors.BOLD}
@@ -148,40 +46,6 @@ def run_command(cmd, check=True, capture_output=False):
     except Exception as e:
         print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
         return False
-
-
-def run_command_check_disk(cmd, description=""):
-    """
-    Выполнить команду с проверкой на ошибку нехватки места на диске.
-    Возвращает (success, is_disk_error).
-    """
-    try:
-        result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=600
-        )
-
-        output = (result.stdout or "") + (result.stderr or "")
-
-        # Проверка на ошибку нехватки места
-        if is_disk_space_error(output):
-            return False, True
-
-        if result.returncode != 0:
-            if output:
-                print(output)
-            return False, False
-
-        return True, False
-
-    except subprocess.TimeoutExpired:
-        print(f"{Colors.FAIL}❌ Таймаут выполнения команды{Colors.ENDC}")
-        return False, False
-    except Exception as e:
-        error_str = str(e)
-        if is_disk_space_error(error_str):
-            return False, True
-        print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
-        return False, False
 
 def detect_gpu_type():
     """Определение типа GPU"""
@@ -290,79 +154,10 @@ def create_backup():
         print(f"{Colors.FAIL}❌ Не удалось создать backup{Colors.ENDC}")
         return False
 
-def preserve_n8n_backup():
-    """Сохранение локальных изменений в n8n/backup перед git reset"""
-    if not os.path.exists('n8n/backup'):
-        return None
-    
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    temp_backup_dir = f"/tmp/lisa_n8n_backup_{timestamp}"
-    
-    try:
-        print(f"{Colors.OKBLUE}💾 Сохранение локальных изменений в n8n/backup...{Colors.ENDC}")
-        shutil.copytree('n8n/backup', temp_backup_dir, dirs_exist_ok=True)
-        print(f"{Colors.OKGREEN}✅ Локальные изменения сохранены: {temp_backup_dir}{Colors.ENDC}")
-        return temp_backup_dir
-    except Exception as e:
-        print(f"{Colors.WARNING}⚠️  Не удалось сохранить n8n/backup: {e}{Colors.ENDC}")
-        return None
-
-def restore_n8n_backup(temp_backup_dir):
-    """Восстановление локальных изменений в n8n/backup после git reset"""
-    if not temp_backup_dir or not os.path.exists(temp_backup_dir):
-        return
-    
-    try:
-        print(f"{Colors.OKBLUE}📦 Восстановление локальных изменений в n8n/backup...{Colors.ENDC}")
-        
-        # Создаем директорию если её нет
-        if not os.path.exists('n8n/backup'):
-            os.makedirs('n8n/backup', exist_ok=True)
-        
-        # Восстанавливаем файлы с приоритетом локальных изменений
-        restored_count = 0
-        for root, dirs, files in os.walk(temp_backup_dir):
-            # Вычисляем относительный путь
-            rel_path = os.path.relpath(root, temp_backup_dir)
-            target_dir = os.path.join('n8n/backup', rel_path) if rel_path != '.' else 'n8n/backup'
-            
-            # Создаем директории
-            if rel_path != '.':
-                os.makedirs(target_dir, exist_ok=True)
-            
-            # Копируем файлы
-            for file in files:
-                src_file = os.path.join(root, file)
-                dst_file = os.path.join(target_dir, file)
-                shutil.copy2(src_file, dst_file)
-                restored_count += 1
-        
-        print(f"{Colors.OKGREEN}✅ Восстановлено {restored_count} файлов из n8n/backup{Colors.ENDC}")
-        
-        # Удаляем временную директорию
-        shutil.rmtree(temp_backup_dir)
-        
-    except Exception as e:
-        print(f"{Colors.WARNING}⚠️  Не удалось восстановить n8n/backup: {e}{Colors.ENDC}")
-
 def pull_git_updates():
     """Получение обновлений из Git"""
     print(f"\n{Colors.OKBLUE}🔄 Получение обновлений из Git...{Colors.ENDC}")
-
-    # Проверка наличия remote 'origin'
-    try:
-        result = subprocess.run(
-            ["git", "remote", "get-url", "origin"],
-            capture_output=True, text=True, check=False, timeout=10
-        )
-        if result.returncode != 0:
-            print(f"{Colors.FAIL}❌ Remote 'origin' не настроен!{Colors.ENDC}")
-            print(f"{Colors.WARNING}   Настройте remote: git remote add origin <url>{Colors.ENDC}")
-            return False
-    except Exception as e:
-        print(f"{Colors.FAIL}❌ Ошибка проверки remote: {e}{Colors.ENDC}")
-        return False
-
+    
     # Проверка наличия изменений
     status = run_command("git status --porcelain", capture_output=True)
     if status:
@@ -372,65 +167,14 @@ def pull_git_updates():
         if response != 'y':
             print(f"{Colors.WARNING}Обновление отменено{Colors.ENDC}")
             return False
-
-    # Сохранение .env файла перед обновлением
-    env_backup = None
-    if os.path.exists('.env'):
-        print(f"{Colors.OKBLUE}📦 Сохранение .env файла...{Colors.ENDC}")
-        try:
-            with open('.env', 'r') as f:
-                env_backup = f.read()
-        except Exception as e:
-            print(f"{Colors.WARNING}⚠️  Не удалось сохранить .env: {e}{Colors.ENDC}")
-
-    # Сохранение n8n/backup перед git reset
-    n8n_backup_dir = preserve_n8n_backup()
-
-    # Получение обновлений из Git (надежный метод)
-    print(f"{Colors.OKBLUE}📥 Получение обновлений из GitHub...{Colors.ENDC}")
-    if not run_command("git fetch origin main", check=False):
-        print(f"{Colors.FAIL}❌ Не удалось получить обновления из Git{Colors.ENDC}")
+    
+    # Pull изменений
+    if run_command("git pull origin main"):
+        print(f"{Colors.OKGREEN}✅ Git обновления получены{Colors.ENDC}")
+        return True
+    else:
+        print(f"{Colors.FAIL}❌ Не удалось получить обновления{Colors.ENDC}")
         return False
-
-    # Показываем информацию о полученных изменениях
-    try:
-        result = subprocess.run(
-            ["git", "log", "HEAD..origin/main", "--oneline"],
-            capture_output=True, text=True, check=False, timeout=10
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            print(f"{Colors.OKCYAN}📋 Получены обновления:{Colors.ENDC}")
-            # Показываем первые несколько коммитов
-            lines = result.stdout.strip().split('\n')[:5]
-            for line in lines:
-                if line.strip():
-                    print(f"   {line}")
-            total_lines = len(result.stdout.strip().split('\n'))
-            if total_lines > 5:
-                print(f"   ... и еще {total_lines - 5} коммитов")
-    except:
-        pass
-
-    if not run_command("git reset --hard origin/main", check=False):
-        print(f"{Colors.FAIL}❌ Не удалось применить обновления{Colors.ENDC}")
-        return False
-
-    # Восстановление .env файла
-    if env_backup:
-        print(f"{Colors.OKBLUE}📦 Восстановление .env файла...{Colors.ENDC}")
-        try:
-            with open('.env', 'w') as f:
-                f.write(env_backup)
-            print(f"{Colors.OKGREEN}✅ Файл .env восстановлен{Colors.ENDC}")
-        except Exception as e:
-            print(f"{Colors.FAIL}❌ Не удалось восстановить .env: {e}{Colors.ENDC}")
-            return False
-
-    # Восстановление n8n/backup после git reset
-    restore_n8n_backup(n8n_backup_dir)
-
-    print(f"{Colors.OKGREEN}✅ Git обновления получены{Colors.ENDC}")
-    return True
 
 def stop_services(profile):
     """Остановка сервисов"""
@@ -445,124 +189,40 @@ def stop_services(profile):
         return False
 
 def update_containers():
-    """
-    Обновление Docker контейнеров.
-    Возвращает (success, is_disk_error).
-    """
+    """Обновление Docker контейнеров"""
     print(f"\n{Colors.OKBLUE}🐳 Обновление Docker образов...{Colors.ENDC}")
-
+    
     # Pull новых образов (игнорируем образы, которые нужно собирать)
-    success, is_disk_error = run_command_check_disk(
-        "docker compose -p localai pull --ignore-buildable"
-    )
-    if is_disk_error:
-        return False, True
-    if not success:
-        print(f"{Colors.WARNING}⚠️  Некоторые образы не загружены, продолжаем...{Colors.ENDC}")
-
+    if not run_command("docker compose -p localai pull --ignore-buildable"):
+        print(f"{Colors.FAIL}❌ Не удалось скачать обновления{Colors.ENDC}")
+        return False
+    
     # Rebuild кастомных образов (n8n-ffmpeg)
     print(f"\n{Colors.OKBLUE}🔨 Пересборка кастомных образов...{Colors.ENDC}")
-    success, is_disk_error = run_command_check_disk(
-        "docker compose -p localai build n8n"
-    )
-    if is_disk_error:
-        return False, True
-    if not success:
+    if not run_command("docker compose -p localai build n8n"):
         print(f"{Colors.WARNING}⚠️  Не удалось пересобрать n8n-ffmpeg{Colors.ENDC}")
-
+    
     print(f"{Colors.OKGREEN}✅ Docker образы обновлены{Colors.ENDC}")
-    return True, False
+    return True
 
 def restart_services(profile, environment):
-    """
-    Перезапуск сервисов.
-    Возвращает (success, is_disk_error).
-    """
+    """Перезапуск сервисов"""
     print(f"\n{Colors.OKBLUE}🚀 Перезапуск сервисов...{Colors.ENDC}")
 
     cmd = f"python3 start_services.py --profile {profile} --environment {environment}"
     print(f"{Colors.OKCYAN}   Команда: {cmd}{Colors.ENDC}")
 
-    try:
-        result = subprocess.run(cmd, shell=True, timeout=600)
-
-        # Проверка на код ошибки нехватки места
-        if result.returncode == EXIT_CODE_DISK_SPACE:
-            return False, True
-
-        if result.returncode == 0:
-            print(f"{Colors.OKGREEN}✅ Сервисы запущены{Colors.ENDC}")
-            return True, False
-        else:
-            print(f"{Colors.FAIL}❌ Не удалось запустить сервисы{Colors.ENDC}")
-            return False, False
-
-    except subprocess.TimeoutExpired:
-        print(f"{Colors.FAIL}❌ Таймаут запуска сервисов{Colors.ENDC}")
-        return False, False
-    except Exception as e:
-        print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
-        return False, False
-
-def ensure_ollama_models():
-    """Проверка и загрузка необходимых моделей Ollama"""
-    print(f"\n{Colors.OKBLUE}🦙 Проверка моделей Ollama...{Colors.ENDC}")
-
-    import time
-
-    # Ждём запуска Ollama контейнера
-    max_wait = 60
-    waited = 0
-    while waited < max_wait:
-        result = run_command("docker ps --filter 'name=ollama' --format '{{.Names}}'",
-                            capture_output=True, check=False)
-        if result and 'ollama' in str(result):
-            break
-        time.sleep(5)
-        waited += 5
-        print(f"{Colors.WARNING}   Ожидание запуска Ollama... ({waited}s){Colors.ENDC}")
-
-    if waited >= max_wait:
-        print(f"{Colors.WARNING}⚠️  Ollama контейнер не запущен, пропускаем проверку моделей{Colors.ENDC}")
-        return
-
-    # Даём Ollama время на инициализацию
-    time.sleep(5)
-
-    # Список необходимых моделей
-    required_models = ["gemma3:1b", "nomic-embed-text"]
-
-    # Получаем список установленных моделей
-    installed = run_command("docker exec ollama ollama list", capture_output=True, check=False)
-    installed_str = str(installed) if installed else ""
-
-    for model in required_models:
-        # Проверяем наличие модели (gemma3:1b может отображаться как gemma3:1b или gemma3 1b)
-        model_check = model.replace(":", " ").split()[0]  # берём базовое имя
-        if model_check in installed_str or model in installed_str:
-            print(f"{Colors.OKGREEN}✅ Модель {model} уже установлена{Colors.ENDC}")
-        else:
-            print(f"{Colors.OKCYAN}📥 Загрузка модели {model}...{Colors.ENDC}")
-            # Используем увеличенный таймаут для загрузки модели
-            try:
-                result = subprocess.run(
-                    f"docker exec ollama ollama pull {model}",
-                    shell=True, timeout=600, check=False
-                )
-                if result.returncode == 0:
-                    print(f"{Colors.OKGREEN}✅ Модель {model} успешно загружена{Colors.ENDC}")
-                else:
-                    print(f"{Colors.WARNING}⚠️  Не удалось загрузить {model}{Colors.ENDC}")
-            except subprocess.TimeoutExpired:
-                print(f"{Colors.WARNING}⚠️  Таймаут загрузки {model} (можно загрузить позже вручную){Colors.ENDC}")
-            except Exception as e:
-                print(f"{Colors.WARNING}⚠️  Ошибка загрузки {model}: {e}{Colors.ENDC}")
-
+    if run_command(cmd):
+        print(f"{Colors.OKGREEN}✅ Сервисы запущены{Colors.ENDC}")
+        return True
+    else:
+        print(f"{Colors.FAIL}❌ Не удалось запустить сервисы{Colors.ENDC}")
+        return False
 
 def verify_health():
     """Проверка здоровья сервисов"""
     print(f"\n{Colors.OKBLUE}🏥 Проверка здоровья сервисов...{Colors.ENDC}")
-
+    
     import time
     time.sleep(10)  # Даем время на запуск
     
@@ -578,87 +238,397 @@ def verify_health():
         print(f"{Colors.FAIL}❌ Не удалось проверить статус{Colors.ENDC}")
         return False
 
+def generate_secret_key(length=32):
+    """Генерация криптографически безопасного секрета."""
+    return secrets.token_hex(length)
+
+
+def parse_proxy_input(proxy_string):
+    """
+    Parse proxy string in format: IP:PORT@USER:PASS
+    Returns dict with keys: ip, port, user, password
+    Returns None if parsing fails or input is '-'
+    """
+    if not proxy_string or proxy_string.strip() == '-':
+        return None
+
+    try:
+        # Format: IP:PORT@USER:PASS
+        if '@' in proxy_string:
+            ip_port, user_pass = proxy_string.split('@', 1)
+            ip, port = ip_port.split(':', 1)
+            user, password = user_pass.split(':', 1)
+        else:
+            # Format without auth: IP:PORT (not recommended)
+            ip, port = proxy_string.split(':', 1)
+            user, password = '', ''
+
+        return {
+            'ip': ip.strip(),
+            'port': port.strip(),
+            'user': user.strip(),
+            'password': password.strip()
+        }
+    except ValueError:
+        return None
+
+
+def validate_proxy_input(proxy_string):
+    """Validate proxy input format."""
+    import re
+    if proxy_string.strip() == '-':
+        return True
+
+    result = parse_proxy_input(proxy_string)
+    if result is None:
+        return False
+
+    # Validate IP format (basic check)
+    ip_pattern = r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+    if not re.match(ip_pattern, result['ip']):
+        return False
+
+    # Validate port
+    try:
+        port = int(result['port'])
+        if port < 1 or port > 65535:
+            return False
+    except ValueError:
+        return False
+
+    return True
+
+
+def generate_squid_config(proxy_data):
+    """
+    Generate squid.conf from template using proxy data.
+    Returns True on success, False on failure.
+    """
+    template_path = os.path.join(os.path.dirname(__file__), 'squid', 'squid.conf.template')
+    config_path = os.path.join(os.path.dirname(__file__), 'squid', 'squid.conf')
+
+    try:
+        # Read template
+        with open(template_path, 'r') as f:
+            template = f.read()
+
+        # Replace placeholders
+        config = template.replace('{PROXY_IP}', proxy_data['ip'])
+        config = config.replace('{PROXY_PORT}', proxy_data['port'])
+        config = config.replace('{PROXY_USER}', proxy_data['user'])
+        config = config.replace('{PROXY_PASS}', proxy_data['password'])
+
+        # Write config
+        with open(config_path, 'w') as f:
+            f.write(config)
+
+        print(f"{Colors.OKGREEN}✅ Конфигурация Squid обновлена: squid/squid.conf{Colors.ENDC}")
+        return True
+    except Exception as e:
+        print(f"{Colors.FAIL}❌ Ошибка создания конфигурации Squid: {e}{Colors.ENDC}")
+        return False
+
+
+def get_current_proxy_config():
+    """Получение текущей конфигурации прокси из .env."""
+    if not os.path.exists('.env'):
+        return None
+
+    config = {}
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('PROXY_ENABLED='):
+                    config['enabled'] = line.split('=', 1)[1].lower() == 'true'
+                elif line.startswith('PROXY_IP='):
+                    config['ip'] = line.split('=', 1)[1]
+                elif line.startswith('PROXY_PORT='):
+                    config['port'] = line.split('=', 1)[1]
+                elif line.startswith('PROXY_USER='):
+                    config['user'] = line.split('=', 1)[1]
+                elif line.startswith('PROXY_PASS='):
+                    config['password'] = line.split('=', 1)[1]
+    except:
+        return None
+
+    return config if config.get('enabled') else None
+
+
+def update_proxy_config():
+    """Обновление конфигурации прокси."""
+    print(f"\n{Colors.OKBLUE}🌐 Настройка прокси для API запросов:{Colors.ENDC}")
+
+    current = get_current_proxy_config()
+    if current:
+        print(f"{Colors.OKGREEN}   Текущий прокси: {current['ip']}:{current['port']}@{current['user']}:***{Colors.ENDC}")
+        print(f"{Colors.WARNING}   Введите новый прокси, '-' для отключения, или Enter чтобы оставить текущий{Colors.ENDC}")
+    else:
+        print(f"{Colors.WARNING}   Прокси не настроен. Формат: IP:PORT@USER:PASS{Colors.ENDC}")
+        print(f"{Colors.WARNING}   Введите прокси или '-' для пропуска{Colors.ENDC}")
+
+    while True:
+        proxy_input = input(f"\n{Colors.BOLD}Прокси: {Colors.ENDC}").strip()
+
+        # Если Enter и есть текущий прокси — оставляем
+        if not proxy_input and current:
+            print(f"{Colors.OKGREEN}✅ Используется текущий прокси{Colors.ENDC}")
+            return None  # Не менять
+
+        # Если Enter и нет прокси — пропускаем
+        if not proxy_input and not current:
+            return None
+
+        # Если '-' — отключаем прокси
+        if proxy_input == '-':
+            return {'disable': True}
+
+        # Валидация
+        if validate_proxy_input(proxy_input):
+            return parse_proxy_input(proxy_input)
+        else:
+            print(f"{Colors.FAIL}❌ Неверный формат. Используйте: IP:PORT@USER:PASS{Colors.ENDC}")
+
+
+def apply_proxy_config(proxy_data):
+    """Применение новой конфигурации прокси к .env файлу."""
+    if not os.path.exists('.env'):
+        return False
+
+    with open('.env', 'r') as f:
+        lines = f.readlines()
+
+    new_lines = []
+    proxy_section_found = False
+    skip_until_section = False
+
+    for line in lines:
+        # Пропускаем старую секцию прокси
+        if '# Proxy Configuration' in line:
+            skip_until_section = True
+            proxy_section_found = True
+            continue
+        if skip_until_section:
+            if line.startswith('#') and 'Configuration' in line:
+                skip_until_section = False
+                new_lines.append(line)
+            elif line.startswith('PROXY_') or line.strip() == '':
+                continue
+            else:
+                skip_until_section = False
+                new_lines.append(line)
+            continue
+        new_lines.append(line)
+
+    # Добавляем новую секцию прокси
+    if proxy_data and not proxy_data.get('disable'):
+        proxy_section = f"""
+############
+# Proxy Configuration (for API requests)
+############
+PROXY_ENABLED=true
+PROXY_IP={proxy_data['ip']}
+PROXY_PORT={proxy_data['port']}
+PROXY_USER={proxy_data['user']}
+PROXY_PASS={proxy_data['password']}
+
+"""
+        # Вставляем перед секцией Database
+        inserted = False
+        final_lines = []
+        for line in new_lines:
+            if '# Database - PostgreSQL Configuration' in line and not inserted:
+                final_lines.append(proxy_section)
+                inserted = True
+            final_lines.append(line)
+
+        if not inserted:
+            final_lines.append(proxy_section)
+
+        new_lines = final_lines
+
+        # Генерируем squid.conf
+        generate_squid_config(proxy_data)
+    else:
+        # Добавляем закомментированную секцию
+        proxy_section = """
+############
+# Proxy Configuration (disabled)
+############
+# PROXY_ENABLED=false
+# PROXY_IP=
+# PROXY_PORT=
+# PROXY_USER=
+# PROXY_PASS=
+
+"""
+        # Вставляем перед секцией Database
+        inserted = False
+        final_lines = []
+        for line in new_lines:
+            if '# Database - PostgreSQL Configuration' in line and not inserted:
+                final_lines.append(proxy_section)
+                inserted = True
+            final_lines.append(line)
+
+        if not inserted:
+            final_lines.append(proxy_section)
+
+        new_lines = final_lines
+
+    with open('.env', 'w') as f:
+        f.writelines(new_lines)
+
+    return True
+
+
+def migrate_env_for_task_runners():
+    """
+    Миграция .env для поддержки Task Runners (External Mode).
+    Добавляет N8N_RUNNERS_AUTH_TOKEN если его нет.
+    """
+    print(f"\n{Colors.OKBLUE}🔄 Проверка конфигурации Task Runners...{Colors.ENDC}")
+
+    if not os.path.exists('.env'):
+        print(f"{Colors.WARNING}⚠️  Файл .env не найден, пропускаем миграцию{Colors.ENDC}")
+        return
+
+    with open('.env', 'r') as f:
+        env_content = f.read()
+
+    # Проверяем наличие N8N_RUNNERS_AUTH_TOKEN
+    if 'N8N_RUNNERS_AUTH_TOKEN=' in env_content:
+        print(f"{Colors.OKGREEN}✅ Task Runners уже настроены (N8N_RUNNERS_AUTH_TOKEN найден){Colors.ENDC}")
+        return
+
+    # Генерируем новый токен
+    runners_token = generate_secret_key(32)
+
+    # Добавляем токен после N8N_USER_MANAGEMENT_JWT_SECRET или в начало N8N секции
+    lines = env_content.split('\n')
+    new_lines = []
+    token_added = False
+
+    for i, line in enumerate(lines):
+        new_lines.append(line)
+
+        # Добавляем после N8N_USER_MANAGEMENT_JWT_SECRET
+        if line.startswith('N8N_USER_MANAGEMENT_JWT_SECRET=') and not token_added:
+            new_lines.append('')
+            new_lines.append('# Task Runners (External Mode) - обязательно для n8n 2.0+')
+            new_lines.append('# Секретный токен для связи n8n и контейнера runners')
+            new_lines.append(f'N8N_RUNNERS_AUTH_TOKEN={runners_token}')
+            token_added = True
+
+    # Если не нашли N8N_USER_MANAGEMENT_JWT_SECRET, добавляем в начало
+    if not token_added:
+        new_lines.insert(0, f'N8N_RUNNERS_AUTH_TOKEN={runners_token}')
+        new_lines.insert(0, '# Секретный токен для связи n8n и контейнера runners')
+        new_lines.insert(0, '# Task Runners (External Mode) - обязательно для n8n 2.0+')
+        new_lines.insert(0, '')
+
+    with open('.env', 'w') as f:
+        f.write('\n'.join(new_lines))
+
+    print(f"{Colors.OKGREEN}✅ Добавлен N8N_RUNNERS_AUTH_TOKEN для External Mode{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}   Task Runners теперь работают в отдельном контейнере{Colors.ENDC}")
+
+
 def update_env_with_resources(cpu_count, mem_gb):
-    """Обновление .env файла с рекомендованными лимитами ресурсов"""
+    """
+    Обновление .env файла с рекомендованными лимитами ресурсов.
+
+    Распределение памяти для 8GB RAM:
+    - Ollama: 2.5GB (30%) — для LLM моделей
+    - PostgreSQL: 1.5GB (18%) — для Supabase
+    - N8N: 1GB (12%) — основной процесс
+    - N8N Runners: 768MB (9%) — выполнение Code нод (JS + Python)
+    - Qdrant: 512MB (6%) — векторное хранилище
+    - Whisper: 512MB (6%) — распознавание речи
+    - Остальное: ~1GB на систему и буфер
+    """
     print(f"\n{Colors.OKBLUE}⚙️  Настройка лимитов ресурсов...{Colors.ENDC}")
-    
+
     if not os.path.exists('.env'):
         print(f"{Colors.WARNING}⚠️  Файл .env не найден, пропускаем{Colors.ENDC}")
         return
-    
-    # Рассчитываем лимиты
-    ollama_cpu = max(2, int(cpu_count * 0.4))
-    ollama_mem = max(4, int(mem_gb * 0.4))
-    
-    postgres_cpu = max(1, int(cpu_count * 0.2))
-    postgres_mem = max(2, int(mem_gb * 0.2))
-    
-    n8n_cpu = max(1, int(cpu_count * 0.15))
-    n8n_mem = max(2, int(mem_gb * 0.15))
-    
-    qdrant_cpu = max(1, int(cpu_count * 0.1))
-    qdrant_mem = max(1, int(mem_gb * 0.1))
-    
-    webui_cpu = max(1, int(cpu_count * 0.1))
-    webui_mem = max(1, int(mem_gb * 0.1))
-    
+
+    # Рассчитываем лимиты (оптимизировано для 8GB RAM)
+    ollama_cpu = max(1, min(int(cpu_count * 0.5), cpu_count - 1))
+    ollama_mem = max(2, int(mem_gb * 0.30))  # 2.4GB для 8GB
+
+    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
+    postgres_mem = max(1, int(mem_gb * 0.18))  # 1.4GB для 8GB
+
+    n8n_cpu = max(0.5, min(int(cpu_count * 0.2), cpu_count - 1))
+    n8n_mem = max(1, int(mem_gb * 0.12))  # ~1GB для 8GB
+
+    # N8N Runners — отдельный контейнер для Code нод
+    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
+    runners_mem_mb = max(512, int(mem_gb * 0.09 * 1024))  # ~768MB для 8GB
+
+    qdrant_cpu = max(0.25, min(int(cpu_count * 0.1), cpu_count - 1))
+    qdrant_mem_mb = max(256, int(mem_gb * 0.06 * 1024))  # ~512MB для 8GB
+
     # Читаем .env
     with open('.env', 'r') as f:
         lines = f.readlines()
-    
+
     # Добавляем лимиты если их нет
     resource_vars = [
         f"\n# Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})\n",
+        f"# Оптимизировано для {mem_gb}GB RAM\n",
         f"OLLAMA_CPU_LIMIT={ollama_cpu}\n",
         f"OLLAMA_MEM_LIMIT={ollama_mem}G\n",
-        f"OLLAMA_CPU_RESERVE={ollama_cpu // 2}\n",
+        f"OLLAMA_CPU_RESERVE={max(0.5, ollama_cpu / 2)}\n",
         f"OLLAMA_MEM_RESERVE={ollama_mem // 2}G\n",
         f"POSTGRES_CPU_LIMIT={postgres_cpu}\n",
         f"POSTGRES_MEM_LIMIT={postgres_mem}G\n",
-        f"POSTGRES_CPU_RESERVE={postgres_cpu // 2}\n",
+        f"POSTGRES_CPU_RESERVE={max(0.5, postgres_cpu / 2)}\n",
         f"POSTGRES_MEM_RESERVE={postgres_mem // 2}G\n",
         f"N8N_CPU_LIMIT={n8n_cpu}\n",
         f"N8N_MEM_LIMIT={n8n_mem}G\n",
-        f"N8N_CPU_RESERVE={n8n_cpu // 2}\n",
-        f"N8N_MEM_RESERVE={n8n_mem // 2}G\n",
+        f"N8N_CPU_RESERVE={max(0.25, n8n_cpu / 2)}\n",
+        f"N8N_MEM_RESERVE={max(512, n8n_mem * 512)}M\n",
+        f"# N8N Task Runners (External Mode)\n",
+        f"N8N_RUNNERS_CPU_LIMIT={runners_cpu}\n",
+        f"N8N_RUNNERS_MEM_LIMIT={runners_mem_mb}M\n",
+        f"N8N_RUNNERS_CPU_RESERVE=0.25\n",
+        f"N8N_RUNNERS_MEM_RESERVE={runners_mem_mb // 2}M\n",
         f"QDRANT_CPU_LIMIT={qdrant_cpu}\n",
-        f"QDRANT_MEM_LIMIT={qdrant_mem}G\n",
-        f"QDRANT_CPU_RESERVE=0.5\n",
-        f"QDRANT_MEM_RESERVE=1G\n",
-        f"WEBUI_CPU_LIMIT={webui_cpu}\n",
-        f"WEBUI_MEM_LIMIT={webui_mem}G\n",
-        f"WEBUI_CPU_RESERVE=0.5\n",
-        f"WEBUI_MEM_RESERVE=1G\n",
+        f"QDRANT_MEM_LIMIT={qdrant_mem_mb}M\n",
+        f"QDRANT_CPU_RESERVE=0.25\n",
+        f"QDRANT_MEM_RESERVE={qdrant_mem_mb // 2}M\n",
     ]
-    
+
     # Проверяем, есть ли уже эти переменные
     env_content = ''.join(lines)
     if 'OLLAMA_CPU_LIMIT' not in env_content:
         lines.extend(resource_vars)
-        
+
         with open('.env', 'w') as f:
             f.writelines(lines)
-        
-        print(f"{Colors.OKGREEN}✅ Лимиты ресурсов добавлены в .env:{Colors.ENDC}")
+
+        print(f"{Colors.OKGREEN}✅ Лимиты ресурсов настроены для {mem_gb}GB RAM:{Colors.ENDC}")
         print(f"   Ollama: {ollama_cpu} CPU, {ollama_mem}G RAM")
         print(f"   PostgreSQL: {postgres_cpu} CPU, {postgres_mem}G RAM")
         print(f"   N8N: {n8n_cpu} CPU, {n8n_mem}G RAM")
-        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem}G RAM")
-        print(f"   WebUI: {webui_cpu} CPU, {webui_mem}G RAM")
+        print(f"   N8N Runners: {runners_cpu} CPU, {runners_mem_mb}M RAM")
+        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem_mb}M RAM")
     else:
         print(f"{Colors.OKGREEN}✅ Лимиты ресурсов уже настроены{Colors.ENDC}")
 
 def main():
     print_header()
-
+    
     print(f"\n{Colors.WARNING}⚠️  ВНИМАНИЕ: Это обновит систему до последней версии{Colors.ENDC}")
     print(f"{Colors.WARNING}   Будет создана резервная копия перед обновлением{Colors.ENDC}\n")
-
+    
     response = input(f"{Colors.BOLD}Продолжить обновление? (y/n): {Colors.ENDC}").strip().lower()
     if response != 'y':
         print(f"\n{Colors.WARNING}Обновление отменено{Colors.ENDC}")
         sys.exit(0)
-
+    
     # Шаг 1: Определение конфигурации
     gpu_profile = detect_gpu_type()
     environment = detect_environment()
@@ -679,31 +649,28 @@ def main():
         print(f"\n{Colors.FAIL}❌ Не удалось получить обновления{Colors.ENDC}")
         sys.exit(1)
 
-    # Шаг 5: Настройка лимитов ресурсов
+    # Шаг 5: Миграция для Task Runners (External Mode)
+    migrate_env_for_task_runners()
+
+    # Шаг 5.5: Настройка прокси
+    proxy_data = update_proxy_config()
+    if proxy_data is not None:
+        apply_proxy_config(proxy_data)
+
+    # Шаг 6: Настройка лимитов ресурсов
     update_env_with_resources(cpu_count, mem_gb)
 
     # Шаг 6: Обновление контейнеров
-    success, is_disk_error = update_containers()
-    if is_disk_error:
-        print_disk_space_recommendations()
-        sys.exit(EXIT_CODE_DISK_SPACE)
-    if not success:
+    if not update_containers():
         print(f"\n{Colors.FAIL}❌ Не удалось обновить контейнеры{Colors.ENDC}")
         sys.exit(1)
 
     # Шаг 7: Перезапуск сервисов
-    success, is_disk_error = restart_services(gpu_profile, environment)
-    if is_disk_error:
-        print_disk_space_recommendations()
-        sys.exit(EXIT_CODE_DISK_SPACE)
-    if not success:
+    if not restart_services(gpu_profile, environment):
         print(f"\n{Colors.FAIL}❌ Не удалось перезапустить сервисы{Colors.ENDC}")
         sys.exit(1)
 
-    # Шаг 8: Проверка и загрузка моделей Ollama
-    ensure_ollama_models()
-
-    # Шаг 9: Проверка здоровья
+    # Шаг 8: Проверка здоровья
     verify_health()
 
     # Финальное сообщение
@@ -713,7 +680,6 @@ def main():
     print(f"\n{Colors.OKCYAN}📋 Система обновлена и запущена{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Профиль: {gpu_profile}{Colors.ENDC}")
     print(f"{Colors.OKCYAN}   Окружение: {environment}{Colors.ENDC}\n")
-
 
 if __name__ == "__main__":
     main()

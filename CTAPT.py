@@ -193,6 +193,89 @@ def get_supabase_key(key_name, min_length=32):
     print(f"{Colors.FAIL}❌ Превышено число попыток ввода {key_name}{Colors.ENDC}")
     sys.exit(1)
 
+def parse_proxy_input(proxy_string):
+    """
+    Parse proxy string in format: IP:PORT@USER:PASS
+    Returns dict with keys: ip, port, user, password
+    Returns None if parsing fails or input is '-'
+    """
+    if not proxy_string or proxy_string.strip() == '-':
+        return None
+
+    try:
+        # Format: IP:PORT@USER:PASS
+        if '@' in proxy_string:
+            ip_port, user_pass = proxy_string.split('@', 1)
+            ip, port = ip_port.split(':', 1)
+            user, password = user_pass.split(':', 1)
+        else:
+            # Format without auth: IP:PORT (not recommended)
+            ip, port = proxy_string.split(':', 1)
+            user, password = '', ''
+
+        return {
+            'ip': ip.strip(),
+            'port': port.strip(),
+            'user': user.strip(),
+            'password': password.strip()
+        }
+    except ValueError:
+        return None
+
+def validate_proxy_input(proxy_string):
+    """Validate proxy input format."""
+    if proxy_string.strip() == '-':
+        return True
+
+    result = parse_proxy_input(proxy_string)
+    if result is None:
+        return False
+
+    # Validate IP format (basic check)
+    import re
+    ip_pattern = r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
+    if not re.match(ip_pattern, result['ip']):
+        return False
+
+    # Validate port
+    try:
+        port = int(result['port'])
+        if port < 1 or port > 65535:
+            return False
+    except ValueError:
+        return False
+
+    return True
+
+def generate_squid_config(proxy_data):
+    """
+    Generate squid.conf from template using proxy data.
+    Returns True on success, False on failure.
+    """
+    template_path = os.path.join(os.path.dirname(__file__), 'squid', 'squid.conf.template')
+    config_path = os.path.join(os.path.dirname(__file__), 'squid', 'squid.conf')
+
+    try:
+        # Read template
+        with open(template_path, 'r') as f:
+            template = f.read()
+
+        # Replace placeholders
+        config = template.replace('{PROXY_IP}', proxy_data['ip'])
+        config = config.replace('{PROXY_PORT}', proxy_data['port'])
+        config = config.replace('{PROXY_USER}', proxy_data['user'])
+        config = config.replace('{PROXY_PASS}', proxy_data['password'])
+
+        # Write config
+        with open(config_path, 'w') as f:
+            f.write(config)
+
+        print(f"{Colors.OKGREEN}✅ Конфигурация Squid создана: squid/squid.conf{Colors.ENDC}")
+        return True
+    except Exception as e:
+        print(f"{Colors.FAIL}❌ Ошибка создания конфигурации Squid: {e}{Colors.ENDC}")
+        return False
+
 def collect_user_inputs():
     inputs = {}
     print(f"\n{Colors.OKCYAN}{Colors.BOLD}📋 КОНФИГУРАЦИЯ СИСТЕМЫ:{Colors.ENDC}\n")
@@ -208,8 +291,7 @@ def collect_user_inputs():
         "Домен Supabase (пример: db.site.ru) или '-': ",
         validate_domain, "Некорректный домен", allow_skip=True)
 
-    # WebUI и Ollama домены не запрашиваем — доступ только по IP
-    inputs['webui_domain'] = None
+    # Ollama домен не запрашиваем — доступ только по IP
     inputs['ollama_domain'] = None
 
     # Email требуется только если есть хотя бы один домен
@@ -227,11 +309,20 @@ def collect_user_inputs():
     
     print(f"\n{Colors.OKBLUE}🔐 Ключи Supabase:{Colors.ENDC}")
     print(f"{Colors.WARNING}💡 Генерация: https://supabase.com/docs/guides/self-hosting/docker#generate-and-configure-api-keys{Colors.ENDC}")
-    
+
     inputs['jwt_secret'] = get_supabase_key("JWT_SECRET", 32)
     inputs['anon_key'] = get_supabase_key("ANON_KEY", 100)
     inputs['service_role_key'] = get_supabase_key("SERVICE_ROLE_KEY", 100)
-    
+
+    # Proxy configuration
+    print(f"\n{Colors.OKBLUE}🌐 Прокси для API запросов (Anthropic, OpenAI, OpenRouter):{Colors.ENDC}")
+    print(f"{Colors.WARNING}💡 Формат: IP:PORT@USER:PASS (например: 45.87.241.81:8000@user:pass){Colors.ENDC}")
+    print(f"{Colors.WARNING}   Введите '-' чтобы пропустить{Colors.ENDC}")
+
+    inputs['proxy'] = get_validated_input(
+        "Прокси или '-': ",
+        validate_proxy_input, "Неверный формат прокси (IP:PORT@USER:PASS)", allow_skip=True)
+
     return inputs
 
 def generate_secret_key(length=32):
@@ -279,6 +370,7 @@ def generate_all_secrets():
     return {
         'n8n_encryption_key': generate_secret_key(32),
         'n8n_jwt_secret': generate_secret_key(32),
+        'n8n_runners_auth_token': generate_secret_key(32),  # Токен для Task Runners (External Mode)
         'postgres_password': generate_password(32),
         'dashboard_password': generate_password(24),
     }
@@ -303,6 +395,10 @@ def create_env_file(user_inputs, generated_secrets):
 N8N_ENCRYPTION_KEY={generated_secrets['n8n_encryption_key']}
 N8N_USER_MANAGEMENT_JWT_SECRET={generated_secrets['n8n_jwt_secret']}
 
+# Task Runners (External Mode) - обязательно для n8n 2.0+
+# Секретный токен для связи n8n и контейнера runners
+N8N_RUNNERS_AUTH_TOKEN={generated_secrets['n8n_runners_auth_token']}
+
 ############
 # Supabase Secrets
 ############
@@ -321,11 +417,9 @@ POOLER_TENANT_ID=1000
     
     # Обработка доменов: если не указан, использовать формат :port для работы по IP
     n8n_hostname = user_inputs.get('n8n_domain') if user_inputs.get('n8n_domain') else ":8001"
-    webui_hostname = user_inputs.get('webui_domain') if user_inputs.get('webui_domain') else ":8002"
     supabase_hostname = user_inputs.get('supabase_domain') if user_inputs.get('supabase_domain') else ":8005"
-    
+
     env_content += f"N8N_HOSTNAME={n8n_hostname}\n"
-    env_content += f"WEBUI_HOSTNAME={webui_hostname}\n"
     env_content += f"SUPABASE_HOSTNAME={supabase_hostname}\n"
     
     # Email для Let's Encrypt (только если есть домены)
@@ -339,7 +433,34 @@ POOLER_TENANT_ID=1000
         env_content += f"OLLAMA_HOSTNAME={user_inputs['ollama_domain']}\n"
     else:
         env_content += f"# OLLAMA_HOSTNAME=ollama.yourdomain.com\n"
-    
+
+    # Proxy configuration
+    proxy_data = parse_proxy_input(user_inputs.get('proxy', ''))
+    if proxy_data:
+        env_content += f"""
+############
+# Proxy Configuration (for API requests)
+############
+PROXY_ENABLED=true
+PROXY_IP={proxy_data['ip']}
+PROXY_PORT={proxy_data['port']}
+PROXY_USER={proxy_data['user']}
+PROXY_PASS={proxy_data['password']}
+"""
+        # Generate squid.conf from template
+        generate_squid_config(proxy_data)
+    else:
+        env_content += f"""
+############
+# Proxy Configuration (disabled)
+############
+# PROXY_ENABLED=false
+# PROXY_IP=
+# PROXY_PORT=
+# PROXY_USER=
+# PROXY_PASS=
+"""
+
     # Остальные обязательные переменные
     env_content += f"""
 ############
@@ -525,7 +646,6 @@ def main():
 
     print(f"  ✅ N8N + FFmpeg - автоматизация и медиа")
     print(f"  ✅ Ollama - локальные LLM (Llama3, Mistral)")
-    print(f"  ✅ Open WebUI - ChatGPT-подобный интерфейс")
     print(f"  ✅ Supabase - база данных с векторным поиском")
     print(f"  ✅ Caddy - автоматический SSL/TLS")
     print(f"  ✅ Redis - кеш и очереди")
@@ -558,7 +678,6 @@ def main():
         # Читаем домены из .env для корректного отображения
         n8n_domain = None
         supabase_domain = None
-        webui_domain = None
         ollama_domain = None
 
         try:
@@ -572,10 +691,6 @@ def main():
                         domain = line.split('=')[1].strip()
                         if domain and not domain.startswith(':'):
                             supabase_domain = domain
-                    elif line.startswith('WEBUI_HOSTNAME='):
-                        domain = line.split('=')[1].strip()
-                        if domain and not domain.startswith(':'):
-                            webui_domain = domain
                     elif line.startswith('OLLAMA_HOSTNAME='):
                         domain = line.split('=')[1].strip()
                         if domain and not domain.startswith(':'):
@@ -589,18 +704,12 @@ def main():
         else:
             n8n_url = f"http://{server_ip}:8001"
 
-        if webui_domain:
-            webui_url = f"http://{server_ip}:8002 или https://{webui_domain}"
-        else:
-            webui_url = f"http://{server_ip}:8002"
-
         if supabase_domain:
             supabase_url = f"http://{server_ip}:8005 или https://{supabase_domain}"
         else:
             supabase_url = f"http://{server_ip}:8005"
 
         print(f"  • N8N: {n8n_url}")
-        print(f"  • Open WebUI: {webui_url}")
         print(f"  • Supabase: {supabase_url}")
         
         # Ollama доступен только если домен указан (иначе только внутри Docker сети)

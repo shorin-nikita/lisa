@@ -10,11 +10,6 @@
     reverse_proxy n8n:5678
 }
 
-# Open WebUI - domain AND localhost
-{$WEBUI_HOSTNAME}, :8002 {
-    reverse_proxy open-webui:8080
-}
-
 # # Ollama API
 # {$OLLAMA_HOSTNAME} {
 #     reverse_proxy ollama:11434
