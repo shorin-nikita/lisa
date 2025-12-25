@@ -22,6 +22,8 @@ cache_peer {PROXY_IP} parent {PROXY_PORT} 0 login={PROXY_USER}:{PROXY_PASS} name
 acl to_proxy dstdomain .anthropic.com .claude.ai
 acl to_proxy dstdomain .openai.com .api.openai.com
 acl to_proxy dstdomain .openrouter.ai
+acl to_proxy dstdomain .x.ai api.x.ai
+acl to_proxy dstdomain .googleapis.com generativelanguage.googleapis.com
 
 cache_peer_access paidproxy allow to_proxy
 cache_peer_access paidproxy deny all

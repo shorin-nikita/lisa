@@ -175,9 +175,11 @@ Enter `-` to skip proxy configuration.
 ```
 
 **Routed domains:**
-- `.anthropic.com`, `.claude.ai`
-- `.openai.com`, `.api.openai.com`
-- `.openrouter.ai`
+- `.anthropic.com`, `.claude.ai` — Anthropic/Claude API
+- `.openai.com`, `.api.openai.com` — OpenAI API
+- `.openrouter.ai` — OpenRouter API
+- `.x.ai`, `api.x.ai` — Grok (xAI) API
+- `.googleapis.com`, `generativelanguage.googleapis.com` — Google Gemini API
 
 **Files:**
 - `squid/squid.conf.template` — Template with placeholders
