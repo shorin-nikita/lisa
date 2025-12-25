@@ -315,7 +315,7 @@ def collect_user_inputs():
     inputs['service_role_key'] = get_supabase_key("SERVICE_ROLE_KEY", 100)
 
     # Proxy configuration
-    print(f"\n{Colors.OKBLUE}🌐 Прокси для API запросов (Anthropic, OpenAI, OpenRouter):{Colors.ENDC}")
+    print(f"\n{Colors.OKBLUE}🌐 Прокси для API запросов (Anthropic, OpenAI, OpenRouter, Grok, Gemini):{Colors.ENDC}")
     print(f"{Colors.WARNING}💡 Формат: IP:PORT@USER:PASS (например: 45.87.241.81:8000@user:pass){Colors.ENDC}")
     print(f"{Colors.WARNING}   Введите '-' чтобы пропустить{Colors.ENDC}")
 
