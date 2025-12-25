@@ -115,7 +115,7 @@ services:
   # Обеспечивает изоляцию, стабильность и безопасность
   # ============================================================
   n8n-runners:
-    image: n8nio/n8n-runner:latest
+    image: n8nio/runners:latest
     container_name: n8n-runners
     restart: unless-stopped
     environment:
@@ -164,7 +164,7 @@ services:
 
   caddy:
     container_name: caddy
-    image: docker.io/library/caddy:2-alpine
+    image: caddy:2-alpine
     restart: unless-stopped
     ports:
       - 80:80/tcp

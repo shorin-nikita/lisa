@@ -817,7 +817,7 @@ def start_local_ai(profile=None, environment=None):
         cmd.extend(["-f", "docker-compose.override.private.yml"])
     if environment and environment == "public":
         cmd.extend(["-f", "docker-compose.override.public.yml"])
-    cmd.extend(["up", "-d", "--pull", "never"])
+    cmd.extend(["up", "-d", "--pull", "missing"])
 
     progress = ProgressIndicator("Запуск контейнеров", estimated_time=120)
     progress.start()
