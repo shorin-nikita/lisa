@@ -509,84 +509,133 @@ def get_system_resources():
     except:
         return 2, 8  # Минимальные значения по умолчанию
 
+def calculate_resource_limits(cpu_count, mem_gb):
+    """
+    Расчёт оптимальных лимитов ресурсов для разных систем.
+
+    Оптимизировано для RAG workflow с большими файлами:
+    - N8N нужно достаточно памяти для обработки файлов и эмбеддингов
+    - Ollama нужно для embedding модели + LLM
+    - PostgreSQL нужно для pgvector индексации
+
+    Распределение памяти (% от доступной RAM):
+    - Ollama: 30% — embedding + LLM модели
+    - N8N: 22% — КРИТИЧНО для RAG (обработка файлов, очереди)
+    - PostgreSQL: 18% — pgvector требует RAM для HNSW индексов
+    - N8N Runners: 8% — Code ноды (JS + Python)
+    - Qdrant: 5% — векторное хранилище (резерв)
+    - System buffer: 17% — ОС, Docker overhead, Whisper
+    """
+
+    # === OLLAMA (30%) ===
+    ollama_cpu = max(2, min(int(cpu_count * 0.5), cpu_count - 1))
+    ollama_mem_gb = max(2.5, round(mem_gb * 0.30, 1))
+
+    # === N8N (22%) - УВЕЛИЧЕНО для RAG ===
+    n8n_cpu = max(1, min(int(cpu_count * 0.3), cpu_count - 1))
+    n8n_mem_gb = max(1.5, round(mem_gb * 0.22, 1))
+    n8n_heap_mb = int(n8n_mem_gb * 1024 * 0.75)
+
+    # === POSTGRESQL (18%) ===
+    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
+    postgres_mem_gb = max(1.5, round(mem_gb * 0.18, 1))
+
+    # === N8N RUNNERS (8%) ===
+    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
+    runners_mem_mb = max(512, int(mem_gb * 0.08 * 1024))
+
+    # === QDRANT (5%) ===
+    qdrant_cpu = max(0.5, min(int(cpu_count * 0.1), cpu_count - 1))
+    qdrant_mem_mb = max(384, int(mem_gb * 0.05 * 1024))
+
+    return {
+        'ollama': {'cpu': ollama_cpu, 'mem_gb': ollama_mem_gb},
+        'n8n': {'cpu': n8n_cpu, 'mem_gb': n8n_mem_gb, 'heap_mb': n8n_heap_mb},
+        'postgres': {'cpu': postgres_cpu, 'mem_gb': postgres_mem_gb},
+        'runners': {'cpu': runners_cpu, 'mem_mb': runners_mem_mb},
+        'qdrant': {'cpu': qdrant_cpu, 'mem_mb': qdrant_mem_mb},
+    }
+
+
 def update_env_with_resources(cpu_count, mem_gb):
     """
     Обновление .env файла с рекомендованными лимитами ресурсов.
 
-    Распределение памяти для 8GB RAM:
-    - Ollama: 2.5GB (30%) — для LLM моделей
-    - PostgreSQL: 1.5GB (18%) — для Supabase
-    - N8N: 1GB (12%) — основной процесс
-    - N8N Runners: 768MB (9%) — выполнение Code нод (JS + Python)
-    - Qdrant: 512MB (6%) — векторное хранилище
-    - Whisper: 512MB (6%) — распознавание речи
-    - Остальное: ~1GB на систему и буфер
+    При первом запуске добавляет секцию Resource Limits.
+    При обновлении лимиты пересчитываются через O6HOBA.py.
     """
     if not os.path.exists('.env'):
         return
 
-    # Рассчитываем лимиты (оптимизировано для 8GB RAM)
-    ollama_cpu = max(1, min(int(cpu_count * 0.5), cpu_count - 1))
-    ollama_mem = max(2, int(mem_gb * 0.30))  # 2.4GB для 8GB
-
-    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
-    postgres_mem = max(1, int(mem_gb * 0.18))  # 1.4GB для 8GB
-
-    n8n_cpu = max(0.5, min(int(cpu_count * 0.2), cpu_count - 1))
-    n8n_mem = max(1, int(mem_gb * 0.12))  # ~1GB для 8GB
-
-    # N8N Runners — отдельный контейнер для Code нод
-    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
-    runners_mem_mb = max(512, int(mem_gb * 0.09 * 1024))  # ~768MB для 8GB
-
-    qdrant_cpu = max(0.25, min(int(cpu_count * 0.1), cpu_count - 1))
-    qdrant_mem_mb = max(256, int(mem_gb * 0.06 * 1024))  # ~512MB для 8GB
-
-    # Читаем .env
+    # Читаем текущий .env
     with open('.env', 'r') as f:
-        lines = f.readlines()
+        content = f.read()
 
-    # Проверяем, есть ли уже эти переменные
-    env_content = ''.join(lines)
-    if 'OLLAMA_CPU_LIMIT' not in env_content:
-        from datetime import datetime
-        resource_vars = [
-            f"\n# Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})\n",
-            f"# Оптимизировано для {mem_gb}GB RAM\n",
-            f"OLLAMA_CPU_LIMIT={ollama_cpu}\n",
-            f"OLLAMA_MEM_LIMIT={ollama_mem}G\n",
-            f"OLLAMA_CPU_RESERVE={max(0.5, ollama_cpu / 2)}\n",
-            f"OLLAMA_MEM_RESERVE={ollama_mem // 2}G\n",
-            f"POSTGRES_CPU_LIMIT={postgres_cpu}\n",
-            f"POSTGRES_MEM_LIMIT={postgres_mem}G\n",
-            f"POSTGRES_CPU_RESERVE={max(0.5, postgres_cpu / 2)}\n",
-            f"POSTGRES_MEM_RESERVE={postgres_mem // 2}G\n",
-            f"N8N_CPU_LIMIT={n8n_cpu}\n",
-            f"N8N_MEM_LIMIT={n8n_mem}G\n",
-            f"N8N_CPU_RESERVE={max(0.25, n8n_cpu / 2)}\n",
-            f"N8N_MEM_RESERVE={max(512, n8n_mem * 512)}M\n",
-            f"# N8N Task Runners (External Mode)\n",
-            f"N8N_RUNNERS_CPU_LIMIT={runners_cpu}\n",
-            f"N8N_RUNNERS_MEM_LIMIT={runners_mem_mb}M\n",
-            f"N8N_RUNNERS_CPU_RESERVE=0.25\n",
-            f"N8N_RUNNERS_MEM_RESERVE={runners_mem_mb // 2}M\n",
-            f"QDRANT_CPU_LIMIT={qdrant_cpu}\n",
-            f"QDRANT_MEM_LIMIT={qdrant_mem_mb}M\n",
-            f"QDRANT_CPU_RESERVE=0.25\n",
-            f"QDRANT_MEM_RESERVE={qdrant_mem_mb // 2}M\n",
-        ]
+    # Если лимиты уже есть — не трогаем (O6HOBA.py обновит при необходимости)
+    if 'OLLAMA_CPU_LIMIT' in content:
+        return
 
-        lines.extend(resource_vars)
+    from datetime import datetime
 
-        with open('.env', 'w') as f:
-            f.writelines(lines)
+    # Рассчитываем оптимальные лимиты
+    limits = calculate_resource_limits(cpu_count, mem_gb)
 
-        print(f"✅ Лимиты ресурсов настроены для {mem_gb}GB RAM:")
-        print(f"   Ollama: {ollama_cpu} CPU, {ollama_mem}G RAM")
-        print(f"   PostgreSQL: {postgres_cpu} CPU, {postgres_mem}G RAM")
-        print(f"   N8N: {n8n_cpu} CPU, {n8n_mem}G RAM")
-        print(f"   N8N Runners: {runners_cpu} CPU, {runners_mem_mb}M RAM")
-        print(f"   Qdrant: {qdrant_cpu} CPU, {qdrant_mem_mb}M RAM")
+    o = limits['ollama']
+    n = limits['n8n']
+    p = limits['postgres']
+    r = limits['runners']
+    q = limits['qdrant']
+
+    resource_section = f"""
+
+############
+# Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})
+# Оптимизировано для {mem_gb}GB RAM — НЕ РЕДАКТИРУЙТЕ ВРУЧНУЮ
+# При обновлении через O6HOBA.py лимиты пересчитываются автоматически
+############
+
+# Ollama — LLM и embedding модели
+OLLAMA_CPU_LIMIT={o['cpu']}
+OLLAMA_MEM_LIMIT={o['mem_gb']}G
+OLLAMA_CPU_RESERVE={max(1, o['cpu'] // 2)}
+OLLAMA_MEM_RESERVE={max(1, int(o['mem_gb'] // 2))}G
+
+# N8N — основной процесс workflow engine
+N8N_CPU_LIMIT={n['cpu']}
+N8N_MEM_LIMIT={n['mem_gb']}G
+N8N_CPU_RESERVE={max(0.5, n['cpu'] / 2)}
+N8N_MEM_RESERVE={max(512, int(n['mem_gb'] * 512))}M
+# Node.js heap size (75% от лимита контейнера)
+N8N_HEAP_SIZE={n['heap_mb']}
+
+# PostgreSQL — Supabase + pgvector для RAG
+POSTGRES_CPU_LIMIT={p['cpu']}
+POSTGRES_MEM_LIMIT={p['mem_gb']}G
+POSTGRES_CPU_RESERVE={max(0.5, p['cpu'] / 2)}
+POSTGRES_MEM_RESERVE={max(512, int(p['mem_gb'] * 512))}M
+
+# N8N Task Runners — External Mode для Code нод
+N8N_RUNNERS_CPU_LIMIT={r['cpu']}
+N8N_RUNNERS_MEM_LIMIT={r['mem_mb']}M
+N8N_RUNNERS_CPU_RESERVE=0.25
+N8N_RUNNERS_MEM_RESERVE={r['mem_mb'] // 2}M
+
+# Qdrant — векторное хранилище (резерв)
+QDRANT_CPU_LIMIT={q['cpu']}
+QDRANT_MEM_LIMIT={q['mem_mb']}M
+QDRANT_CPU_RESERVE=0.25
+QDRANT_MEM_RESERVE={q['mem_mb'] // 2}M
+"""
+
+    with open('.env', 'a') as f:
+        f.write(resource_section)
+
+    print(f"✅ Лимиты ресурсов настроены для {mem_gb}GB RAM:")
+    print(f"   Ollama:     {o['cpu']} CPU, {o['mem_gb']}G RAM")
+    print(f"   N8N:        {n['cpu']} CPU, {n['mem_gb']}G RAM (heap: {n['heap_mb']}MB)")
+    print(f"   PostgreSQL: {p['cpu']} CPU, {p['mem_gb']}G RAM")
+    print(f"   Runners:    {r['cpu']} CPU, {r['mem_mb']}M RAM")
+    print(f"   Qdrant:     {q['cpu']} CPU, {q['mem_mb']}M RAM")
 
 def clone_supabase_repo():
     """Clone the Supabase repository using sparse checkout if not already present."""

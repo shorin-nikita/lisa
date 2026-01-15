@@ -38,7 +38,9 @@ x-n8n: &service-n8n
     - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
     # Python Code Node поддержка
     - N8N_NATIVE_PYTHON_RUNNER=true
-    - NODE_OPTIONS=--max-old-space-size=2048
+    # Node.js heap limit - должен быть меньше N8N_MEM_LIMIT
+    # Автоматически рассчитывается как 75% от лимита контейнера
+    - NODE_OPTIONS=--max-old-space-size=${N8N_HEAP_SIZE:-1536}
     # Proxy settings (optional, used when PROXY_ENABLED=true)
     - HTTP_PROXY=${PROXY_ENABLED:+http://squid:3128}
     - HTTPS_PROXY=${PROXY_ENABLED:+http://squid:3128}

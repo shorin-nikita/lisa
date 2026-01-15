@@ -638,8 +638,8 @@
     },
     {
       "parameters": {
-        "chunkSize": 300,
-        "chunkOverlap": 30,
+        "chunkSize": 1000,
+        "chunkOverlap": 100,
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
