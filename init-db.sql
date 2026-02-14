@@ -85,9 +85,10 @@ CREATE TABLE IF NOT EXISTS embeddings (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_embeddings_vector
-    ON embeddings USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
+-- Note: vector index is created on first `lisa knowledge load` when data exists.
+-- HNSW index works better for small-to-medium datasets:
+-- CREATE INDEX idx_embeddings_vector ON embeddings
+--     USING hnsw (embedding vector_cosine_ops);
 
 -- --- Analytics ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS analytics (

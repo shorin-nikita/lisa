@@ -42,18 +42,18 @@ prompt() {
         echo -ne "${YELLOW}${prompt_text}${NC}: "
     fi
     local value
-    read value < /dev/tty
+    read -r value < /dev/tty
     value="${value:-$default}"
-    eval "$var_name='$value'"
+    printf -v "$var_name" '%s' "$value"
 }
 
 prompt_secret() {
     local var_name="$1" prompt_text="$2"
     echo -ne "${YELLOW}${prompt_text}${NC}: "
     local value
-    read -s value < /dev/tty
+    read -rs value < /dev/tty
     echo ""
-    eval "$var_name='$value'"
+    printf -v "$var_name" '%s' "$value"
 }
 
 prompt_yn() {
@@ -64,13 +64,15 @@ prompt_yn() {
     else
         echo -ne "${YELLOW}${prompt_text} ${DIM}[y/N]${NC}: "
     fi
-    read yn < /dev/tty
+    read -r yn < /dev/tty
     yn="${yn:-$default}"
     [[ "$yn" =~ ^[Yy] ]]
 }
 
 generate_secret() {
-    openssl rand -hex "${1:-32}" 2>/dev/null || head -c "${1:-32}" /dev/urandom | xxd -p | tr -d '\n'
+    local len="${1:-32}"
+    local bytes=$(( (len + 1) / 2 ))
+    openssl rand -hex "$bytes" 2>/dev/null | head -c "$len" || head -c "$bytes" /dev/urandom | xxd -p | tr -d '\n' | head -c "$len"
 }
 
 generate_password() {
@@ -101,6 +103,22 @@ BANNER
 
 check_os() {
     step "Проверка системы"
+
+    # Check git
+    if ! command -v git &>/dev/null; then
+        warn "Git не найден. Устанавливаю..."
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update -qq >/dev/null 2>&1
+            sudo apt-get install -y -qq git >/dev/null 2>&1
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y git >/dev/null 2>&1
+        else
+            fail "Git не найден. Установите вручную: https://git-scm.com/"
+        fi
+        success "Git установлен"
+    else
+        success "Git: $(git --version | awk '{print $3}')"
+    fi
 
     local os
     os="$(uname -s)"
@@ -167,10 +185,12 @@ check_docker() {
         fail "Docker daemon не запущен. Запустите: sudo systemctl start docker"
     fi
 
-    # Check Docker Compose
+    # Check Docker Compose and set COMPOSE_CMD
     if docker compose version &>/dev/null; then
+        COMPOSE_CMD="docker compose"
         success "Docker Compose: $(docker compose version --short 2>/dev/null || echo 'v2+')"
     elif command -v docker-compose &>/dev/null; then
+        COMPOSE_CMD="docker-compose"
         success "Docker Compose: $(docker-compose --version | awk '{print $4}' | tr -d ',')"
     else
         fail "Docker Compose не найден. Установите: https://docs.docker.com/compose/install/"
@@ -294,8 +314,8 @@ configure() {
         4)
             LLM_PROVIDER="ollama"
             LLM_MODEL="llama3"
-            INSTALL_OLLAMA=true
             success "Провайдер: Ollama (локальный)"
+            warn "После установки выполните: lisa module install ollama"
             ;;
         *)
             fail "Неверный выбор: $provider_choice"
@@ -389,53 +409,55 @@ write_env() {
 
     # Backup existing .env
     if [[ -f "$env_file" ]]; then
-        local backup="${env_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        local backup
+        backup="${env_file}.backup.$(date +%Y%m%d_%H%M%S)"
         cp "$env_file" "$backup"
         info "Бэкап предыдущего .env: ${backup}"
     fi
 
-    cat > "$env_file" << EOF
-# ============================================================================
-# L.I.S.A. 2.0 — Configuration
-# Generated: $(date -Iseconds)
-# ============================================================================
-
-# --- LLM Provider ---
-LLM_PROVIDER=${LLM_PROVIDER}
-LLM_API_KEY=${LLM_API_KEY}
-LLM_MODEL=${LLM_MODEL}
-
-# --- PostgreSQL ---
-POSTGRES_USER=lisa
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-POSTGRES_DB=lisa
-POSTGRES_PORT=${POSTGRES_PORT}
-
-# --- Redis ---
-REDIS_PASSWORD=${REDIS_PASSWORD}
-REDIS_PORT=${REDIS_PORT}
-
-# --- OpenClaw ---
-OPENCLAW_SECRET=${OPENCLAW_SECRET}
-OPENCLAW_PORT=18789
-
-# --- Proxy ---
-PROXY_ENABLED=${PROXY_ENABLED}
-PROXY_IP=${PROXY_IP}
-PROXY_PORT=${PROXY_PORT}
-PROXY_USER=${PROXY_USER}
-PROXY_PASS=${PROXY_PASS}
-
-# --- Domain (optional) ---
-DOMAIN=${DOMAIN}
-LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
-
-# --- Resource Limits ---
-POSTGRES_CPU_LIMIT=2
-POSTGRES_MEM_LIMIT=2G
-REDIS_CPU_LIMIT=1
-REDIS_MEM_LIMIT=512M
-EOF
+    # Write .env with proper quoting for special characters in values
+    {
+        echo "# ============================================================================"
+        echo "# L.I.S.A. 2.0 — Configuration"
+        echo "# Generated: $(date -Iseconds)"
+        echo "# ============================================================================"
+        echo ""
+        echo "# --- LLM Provider ---"
+        echo "LLM_PROVIDER=${LLM_PROVIDER}"
+        printf 'LLM_API_KEY="%s"\n' "$LLM_API_KEY"
+        echo "LLM_MODEL=${LLM_MODEL}"
+        echo ""
+        echo "# --- PostgreSQL ---"
+        echo "POSTGRES_USER=lisa"
+        printf 'POSTGRES_PASSWORD="%s"\n' "$POSTGRES_PASSWORD"
+        echo "POSTGRES_DB=lisa"
+        echo "POSTGRES_PORT=${POSTGRES_PORT}"
+        echo ""
+        echo "# --- Redis ---"
+        printf 'REDIS_PASSWORD="%s"\n' "$REDIS_PASSWORD"
+        echo "REDIS_PORT=${REDIS_PORT}"
+        echo ""
+        echo "# --- OpenClaw ---"
+        printf 'OPENCLAW_SECRET="%s"\n' "$OPENCLAW_SECRET"
+        echo "OPENCLAW_PORT=18789"
+        echo ""
+        echo "# --- Proxy ---"
+        echo "PROXY_ENABLED=${PROXY_ENABLED}"
+        echo "PROXY_IP=${PROXY_IP}"
+        echo "PROXY_PORT=${PROXY_PORT}"
+        printf 'PROXY_USER="%s"\n' "$PROXY_USER"
+        printf 'PROXY_PASS="%s"\n' "$PROXY_PASS"
+        echo ""
+        echo "# --- Domain (optional) ---"
+        echo "DOMAIN=${DOMAIN}"
+        echo "LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}"
+        echo ""
+        echo "# --- Resource Limits ---"
+        echo "POSTGRES_CPU_LIMIT=2"
+        echo "POSTGRES_MEM_LIMIT=2G"
+        echo "REDIS_CPU_LIMIT=1"
+        echo "REDIS_MEM_LIMIT=512M"
+    } > "$env_file"
 
     chmod 600 "$env_file"
     success "Конфигурация: ${env_file}"
@@ -657,8 +679,9 @@ CREATE TABLE IF NOT EXISTS embeddings (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_embeddings_vector ON embeddings
-    USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- Note: vector index created when data is loaded via `lisa knowledge load`
+-- CREATE INDEX idx_embeddings_vector ON embeddings
+--     USING hnsw (embedding vector_cosine_ops);
 
 -- --- Analytics ---
 CREATE TABLE IF NOT EXISTS analytics (
@@ -745,17 +768,17 @@ start_services() {
 
     cd "$LISA_DIR"
 
-    # Build compose profiles
-    local profiles=""
+    # Build compose command with profiles
+    local -a compose_args=()
     if [[ "$PROXY_ENABLED" == "true" ]]; then
-        profiles="$profiles --profile proxy"
+        compose_args+=(--profile proxy)
     fi
     if [[ -n "$DOMAIN" ]]; then
-        profiles="$profiles --profile https"
+        compose_args+=(--profile https)
     fi
 
     info "Запуск Docker контейнеров..."
-    docker compose $profiles up -d 2>&1 | while IFS= read -r line; do
+    $COMPOSE_CMD ${compose_args[@]+"${compose_args[@]}"} up -d 2>&1 | while IFS= read -r line; do
         echo -e "  ${DIM}${line}${NC}"
     done
 
@@ -878,9 +901,9 @@ show_summary() {
     echo ""
 
     echo -e "${BOLD}Полезные команды:${NC}"
-    echo -e "  ${DIM}docker compose -f ${LISA_DIR}/docker-compose.yml ps       ${NC}  # статус"
-    echo -e "  ${DIM}docker compose -f ${LISA_DIR}/docker-compose.yml logs -f   ${NC}  # логи"
-    echo -e "  ${DIM}docker compose -f ${LISA_DIR}/docker-compose.yml down      ${NC}  # остановить"
+    echo -e "  ${DIM}cd ${LISA_DIR} && ${COMPOSE_CMD} ps       ${NC}  # статус"
+    echo -e "  ${DIM}cd ${LISA_DIR} && ${COMPOSE_CMD} logs -f   ${NC}  # логи"
+    echo -e "  ${DIM}cd ${LISA_DIR} && ${COMPOSE_CMD} down      ${NC}  # остановить"
     echo ""
 
     if [[ -n "$DOMAIN" ]]; then
