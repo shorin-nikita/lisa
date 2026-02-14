@@ -1,0 +1,19 @@
+name: trends
+description: "Анализ трендов (Google Trends, YouTube, Yandex)"
+version: "1.0.0"
+
+requires:
+  - python3
+  - pip
+
+install: |
+  pip install pytrends requests pandas numpy python-dotenv lxml
+
+env:
+  YOUTUBE_API_KEY: ""
+
+provides:
+  skills:
+    - trends-analyze
+  commands:
+    - lisa trends

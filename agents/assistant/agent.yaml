@@ -1,0 +1,23 @@
+name: "Personal Assistant"
+description: "Личный ассистент с календарём, задачами и почтой"
+
+model:
+  provider: ${LLM_PROVIDER}
+  name: ${LLM_MODEL}
+  temperature: 0.4
+
+channels:
+  - type: telegram
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    mode: all_messages
+
+hitl:
+  enabled: false
+
+memory:
+  daily_logs: true
+  long_term: true
+  max_context_messages: 50
+
+rag:
+  enabled: false

@@ -1,0 +1,28 @@
+name: langfuse
+description: "Мониторинг LLM-вызовов (трейсы, токены, стоимость)"
+version: "1.0.0"
+
+requires:
+  - docker
+
+docker:
+  services:
+    langfuse:
+      image: langfuse/langfuse:latest
+      container_name: lisa_langfuse
+      restart: unless-stopped
+      ports:
+        - "3000:3000"
+      environment:
+        DATABASE_URL: postgresql://${POSTGRES_USER:-lisa}:${POSTGRES_PASSWORD}@lisa_postgres:5432/${POSTGRES_DB:-lisa}
+        NEXTAUTH_SECRET: ${OPENCLAW_SECRET}
+        NEXTAUTH_URL: http://localhost:3000
+        SALT: ${OPENCLAW_SECRET}
+      depends_on:
+        - postgres
+      networks:
+        - lisa
+
+provides:
+  commands:
+    - lisa langfuse

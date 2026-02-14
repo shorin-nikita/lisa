@@ -1,147 +1,192 @@
-# Л.И.С.А. — Локальная Интеллектуальная Система Автоматизации
+# L.I.S.A. 2.0
+
+**Локальная Интеллектуальная Система Автоматизации**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Docker](https://img.shields.io/badge/Docker-20.10%2B-blue)](https://www.docker.com/)
 
-**Бесплатная self-hosted AI платформа** — разверни локальный ИИ на своём сервере за 5 минут.
+AI-агент на своём сервере — с памятью, интеграциями и мозгом.
 
----
-
-## Зачем это нужно
-
-- **Без подписок** — никаких ежемесячных платежей за API
-- **Данные у тебя** — ничего не уходит на сторонние серверы
-- **Всё в одном** — N8N, Ollama, Whisper, Supabase, векторный поиск
-- **Готово к работе** — установил и пользуйся, без танцев с бубном
-
----
-
-## Видео-инструкция
-
-[![Видео-инструкция по установке](https://img.youtube.com/vi/vEwYIoZAFOY/maxresdefault.jpg)](https://youtu.be/vEwYIoZAFOY)
-
-**[Смотреть установку на YouTube](https://youtu.be/vEwYIoZAFOY)** | **[Текстовая инструкция со скриншотами](https://aibot.direct/blog/lisa-install)**
-
----
-
-## Что входит в Л.И.С.А.
-
-| Компонент | Что делает |
-|-----------|------------|
-| **[N8N](https://n8n.io/)** | Автоматизация с 400+ интеграциями |
-| **[Supabase](https://supabase.com/)** | PostgreSQL + векторный поиск для RAG |
-| **[Ollama](https://ollama.com/)** | Локальные LLM (Llama, Mistral, Gemma) |
-| **[Whisper](https://github.com/fedirz/faster-whisper-server)** | Распознавание речи |
-| **[Qdrant](https://qdrant.tech/)** | Векторное хранилище |
-| **[Caddy](https://caddyserver.com/)** | Автоматический HTTPS |
-| **[FFmpeg](https://ffmpeg.org/)** | Обработка аудио/видео |
+> Не набор инструментов, а работающий AI-сотрудник из коробки.
 
 ---
 
 ## Быстрый старт
 
-### 1. Арендуй VPS
-
-Минимум **2 CPU / 8 GB RAM / 50 GB SSD** — этого хватит для старта.
-
-Рекомендую **[Beget](https://beget.com/p2329622)** — стабильные серверы, быстрая поддержка.
-
-### 2. Установи Л.И.С.А.
-
 ```bash
-git clone https://github.com/shorin-nikita/lisa.git
-cd lisa
-python3 CTAPT.py
+bash <(curl -fsSL https://raw.githubusercontent.com/shorin-nikita/lisa/main/install.sh)
 ```
 
-Скрипт сам определит GPU, сгенерирует ключи, настроит firewall и запустит контейнеры.
+Одна команда. 5 минут. Готово.
 
-## Обновление
+---
 
-```bash
-cd lisa
-python3 O6HOBA.py
+## Что устанавливается
+
+| Компонент | Роль | Порт |
+|-----------|------|------|
+| **OpenClaw** | Оркестрация агентов, каналы, HITL, память | 18789 |
+| **PostgreSQL** | БД + pgvector для RAG | 5433 |
+| **Redis** | Кэш, очереди, сессии | 6379 |
+| Squid Proxy | Прокси для AI API (опционально) | 3128 |
+| Caddy | HTTPS с автосертификатами (опционально) | 443 |
+
+---
+
+## Архитектура
+
+```
+Lisa 2.0
+│
+├── Ядро (устанавливается всегда)
+│   ├── OpenClaw         → мозг: агенты, skills, каналы, HITL
+│   ├── PostgreSQL       → память: данные + pgvector (RAG)
+│   └── Redis            → скорость: кэш, очереди
+│
+├── Модули (ставятся по выбору)
+│   ├── trends           → анализ трендов (Google, YouTube, Yandex)
+│   ├── tg-export        → экспорт и анализ Telegram-чатов
+│   ├── n8n              → визуальная автоматизация (400+ коннекторов)
+│   ├── ollama           → локальные LLM (без API ключей)
+│   ├── langfuse         → мониторинг LLM-вызовов
+│   ├── whisper          → голос → текст
+│   └── caddy            → HTTPS
+│
+└── Шаблоны агентов
+    ├── sales            → квалификация лидов, запись на встречу
+    ├── support          → FAQ + RAG по базе знаний
+    ├── content          → анализ трендов + контент-план
+    └── assistant        → календарь, задачи, почта
 ```
 
 ---
 
-## Готовые шаблоны
+## Модули
 
-При установке автоматически импортируются рабочие workflows:
+### Trends Analyzer
 
-| Шаблон | Описание | Уровень |
-|--------|----------|---------|
-| **Telegram Bot** | Бот с голосом, фото, памятью | Бесплатно |
-| **RAG L.I.S.A.** | RAG-агент с векторным поиском | Бесплатно |
-| **WebM → OGG + Транскрибация** | Конвертация видео + расшифровка | Бесплатно |
-| **HTTP Handle** | Webhooks для Telegram/Wazzup | Бесплатно |
+Анализ трендов по ключевому слову из трёх источников:
+
+- **Google Trends** — растущие и топовые запросы
+- **YouTube Data API** — видео, просмотры, паттерны заголовков
+- **Yandex Suggest** — связанные поисковые запросы
+
+```bash
+lisa trends "нейросети"
+```
+
+### Telegram Export
+
+Экспорт и анализ данных из Telegram через MTProto API:
+
+- Экспорт сообщений (JSON / Markdown)
+- Статистический анализ чатов и каналов
+- Аналитика контента (просмотры, реакции, лучшие посты)
+- Автоматический pipeline: экспорт → эмбеддинги → RAG
+
+```bash
+lisa tg-export @channel --analyze
+```
+
+### Другие модули
+
+```bash
+lisa module install n8n        # визуальная автоматизация
+lisa module install ollama      # локальные LLM
+lisa module install langfuse    # мониторинг
+lisa module install whisper     # голос в текст
+```
 
 ---
 
-## PRO: Bitrix24 + RAG Agent — флагманская система
+## Шаблоны агентов
 
-Базовая Л.И.С.А. — бесплатно. В клубе — готовая CRM-система на стероидах.
+```bash
+lisa agent create --template sales      # бот-продажник
+lisa agent create --template support    # бот-поддержка
+lisa agent create --template content    # контент-менеджер
+lisa agent create --template assistant  # личный ассистент
+```
 
-**Что если твоя CRM сама:**
-- принимает заявки из WhatsApp, Telegram, Instagram, VK, Avito
-- понимает текст, голос и фото
-- отвечает клиенту первой
-- дожимает автоматически через 2/24 часа
-- и выводит менеджеру только «готовых к сделке»?
+### Sales Agent
 
-**Я собрал такую систему.** Это n8n + Bitrix24 + Supabase, где RAG, мультиагенты и автодожимы работают как единый организм.
+Квалификация входящих лидов, скоринг, маршрутизация:
+- Уверен в ответе (>=0.85) → отвечает автоматически
+- Не уверен → эскалирует на человека (HITL)
+- Результат: запись на консультацию или редирект на продукт
 
-**Что внутри:**
-- Bitrix24: воронки, статусы, вебхуки
-- Подключение WhatsApp и Telegram через Wazzup
-- Supabase: база знаний для агента
-- Оркестратор + RAG в n8n
-- Follow-up и дожимы
-- Автоматическое создание сделок и задач
+### Support Agent
 
-**Что ещё в клубе:**
-- 20+ готовых n8n workflows
-- Еженедельные разборы и уроки
-- Чат с поддержкой
+FAQ-бот с RAG по базе знаний:
+- Загрузи документы → агент отвечает по ним
+- Telegram Export → автоматическая база знаний из чата
+- Fallback на человека, если ответа нет
 
-**Цена:** 5 000 ₽/мес
+---
 
-**[Вступить в PrideAIBot →](https://t.me/prideaibot)**
+## Отличия от конкурентов
+
+| | Lisa 2.0 | Dify | Flowise | LobeChat |
+|---|----------|------|---------|----------|
+| Агент из коробки | ✅ | ❌ | ❌ | ❌ |
+| Persistent memory | ✅ | ❌ | ❌ | ❌ |
+| HITL (эскалация) | ✅ | ❌ | ❌ | ❌ |
+| Dynamic context | ✅ | ❌ | ❌ | ❌ |
+| Анализ трендов | ✅ | ❌ | ❌ | ❌ |
+| Telegram Export + RAG | ✅ | ❌ | ❌ | ❌ |
+| Модульная архитектура | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
 ## Системные требования
 
 | | Минимум | Рекомендуется |
-|---|---------|---------------|
-| **CPU** | 2 ядра | 4+ ядер |
-| **RAM** | 8 ГБ | 12 ГБ |
-| **Диск** | 50 ГБ | 50 ГБ |
-| **ОС** | Ubuntu 20.04+, macOS, Windows (WSL2) |
+|---|---------|--------------|
+| CPU | 2 ядра | 4+ ядер |
+| RAM | 2 GB | 4+ GB |
+| Диск | 10 GB SSD | 20+ GB SSD |
+| ОС | Ubuntu 20.04+ / macOS | Ubuntu 22.04+ |
+| Docker | 20.10+ | Последняя |
+| Node.js | 22+ | 22+ |
+
+> Для модуля Ollama (локальные LLM): NVIDIA GPU с 6+ GB VRAM рекомендуется
+
+---
+
+## PRO: Клуб PrideAI
+
+Базовая Lisa — бесплатно. В клубе — готовые решения и поддержка:
+
+- Готовые шаблоны агентов под бизнес-задачи
+- Интеграции с CRM (Bitrix24, AmoCRM)
+- Еженедельные разборы и уроки
+- Чат с поддержкой от автора
+
+**Цена:** 5 000 ₽/мес
+
+**[Вступить в PrideAI →](https://t.me/prideaibot)**
 
 ---
 
 ## Нужно внедрение под ключ?
 
-Мы интегрируем ИИ-агентов в твой бизнес:
+Интегрируем AI-агентов в ваш бизнес:
 - Bitrix24, AmoCRM, WhatsApp, Telegram
 - Автоматизация обработки заявок 24/7
-- RAG, голосовые ассистенты, дожимы
+- RAG, голосовые ассистенты, мультиканальность
 
-**[aibot.direct](https://aibot.direct)** | **[@shorin_nikita](https://t.me/shorin_nikita)**
+**[aibot.direct](https://aibot.direct)** | **[@SHORIN1618](https://t.me/SHORIN1618)**
 
 ---
 
 ## Лицензия
 
-Apache 2.0 — см. `LICENSE`
+[Apache 2.0](LICENSE) — свободное использование, включая коммерческое.
 
 ---
 
 <div align="center">
 
-**Сделано для русскоязычного AI-сообщества**
-
-**[GitHub Issues](https://github.com/shorin-nikita/lisa/issues)** | **[@prideaibot](https://t.me/prideaibot)** | **[@shorin_nikita](https://t.me/shorin_nikita)**
+**[GitHub Issues](https://github.com/shorin-nikita/lisa/issues)** | **[@PrideAIBot](https://t.me/prideaibot)** | **[@SHORIN1618](https://t.me/SHORIN1618)**
 
 </div>

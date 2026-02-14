@@ -1,0 +1,31 @@
+name: whisper
+description: "Распознавание речи (Speech-to-Text)"
+version: "1.0.0"
+
+requires:
+  - docker
+
+docker:
+  services:
+    whisper:
+      image: fedirz/faster-whisper-server:latest-cpu
+      container_name: lisa_whisper
+      restart: unless-stopped
+      ports:
+        - "8000:8000"
+      environment:
+        WHISPER__MODEL: "base"
+        WHISPER__INFERENCE_DEVICE: "cpu"
+      volumes:
+        - whisper_models:/root/.cache
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      networks:
+        - lisa
+
+provides:
+  skills:
+    - whisper-transcribe

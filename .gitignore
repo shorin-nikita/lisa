@@ -1,45 +1,39 @@
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# Environment & secrets
+.env
+*.env.local
+*.env.backup.*
 
-# Environment files
-.env.backup*
-.env.tmp
+# Generated configs
+squid.conf
+Caddyfile
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
 venv/
-ENV/
-env/
+.venv/
+*.egg-info/
 
-# IDEs
-.vscode/
+# Node
+node_modules/
+.npm/
+
+# Data
+*.session
+data/
+exports/
+reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
 
 # Docker
 docker-compose.override.yml
@@ -47,21 +41,3 @@ docker-compose.override.yml
 # Logs
 *.log
 logs/
-
-# Supabase (клонируется автоматически)
-supabase/
-
-# Shared directory content (пользовательские файлы)
-shared/*
-!shared/.gitkeep
-
-# Neo4j data
-neo4j/data/
-neo4j/logs/
-neo4j/plugins/
-
-# SearXNG settings (генерируется автоматически)
-searxng/settings.yml
-
-# Flowise data
-.flowise/

@@ -1,0 +1,28 @@
+name: "Sales Agent"
+description: "Квалификация входящих лидов и запись на консультацию"
+
+model:
+  provider: ${LLM_PROVIDER}
+  name: ${LLM_MODEL}
+  temperature: 0.3
+
+channels:
+  - type: telegram
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    mode: all_messages
+
+hitl:
+  enabled: true
+  confidence_threshold: 0.85
+  escalation_channel: telegram
+  escalation_chat_id: ${ADMIN_CHAT_ID}
+
+memory:
+  daily_logs: true
+  long_term: true
+  max_context_messages: 50
+
+rag:
+  enabled: true
+  collection: "knowledge_base"
+  similarity_threshold: 0.7

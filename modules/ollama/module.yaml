@@ -1,0 +1,35 @@
+name: ollama
+description: "Локальные LLM (Llama, Mistral, Gemma, DeepSeek)"
+version: "1.0.0"
+
+requires:
+  - docker
+
+docker:
+  services:
+    ollama:
+      image: ollama/ollama:latest
+      container_name: lisa_ollama
+      restart: unless-stopped
+      ports:
+        - "11434:11434"
+      volumes:
+        - ollama_storage:/root/.ollama
+      environment:
+        OLLAMA_FLASH_ATTENTION: "1"
+        OLLAMA_KV_CACHE_TYPE: "q8_0"
+        OLLAMA_CONTEXT_LENGTH: "8192"
+      deploy:
+        resources:
+          limits:
+            cpus: "4"
+            memory: "8G"
+      networks:
+        - lisa
+
+env:
+  OLLAMA_MODEL: "llama3"
+
+provides:
+  commands:
+    - lisa ollama

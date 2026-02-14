@@ -1,367 +1,104 @@
-include:
-  - ./supabase/docker/docker-compose.yml
-
-volumes:
-  n8n_storage:
-  ollama_storage:
-  qdrant_storage:
-  caddy-data:
-  caddy-config:
-  valkey-data:
-  whisper_models:
-  postgres_data:
-
-x-n8n: &service-n8n
-  build:
-    context: ./n8n-ffmpeg
-    dockerfile: Dockerfile
-  image: n8n-ffmpeg:latest
-  pull_policy: never
-  environment:
-    - DB_TYPE=postgresdb
-    - DB_POSTGRESDB_HOST=db
-    - DB_POSTGRESDB_USER=postgres
-    - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-    - DB_POSTGRESDB_DATABASE=postgres
-    - N8N_DIAGNOSTICS_ENABLED=false
-    - N8N_PERSONALIZATION_ENABLED=false
-    - N8N_ENCRYPTION_KEY
-    - N8N_USER_MANAGEMENT_JWT_SECRET
-    - WEBHOOK_URL=${N8N_HOSTNAME:+https://}${N8N_HOSTNAME:-http://localhost:5678}
-    - NODES_EXCLUDE=[]
-    - N8N_RESTRICT_FILE_ACCESS_TO=/data/shared
-    # Task Runners - External Mode (рекомендуется для n8n 2.0+)
-    # Runners запускаются в отдельном контейнере для изоляции и стабильности
-    - N8N_RUNNERS_ENABLED=true
-    - N8N_RUNNERS_MODE=external
-    - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
-    - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
-    # Python Code Node поддержка
-    - N8N_NATIVE_PYTHON_RUNNER=true
-    # Node.js heap limit - должен быть меньше N8N_MEM_LIMIT
-    # Автоматически рассчитывается как 75% от лимита контейнера
-    - NODE_OPTIONS=--max-old-space-size=${N8N_HEAP_SIZE:-1536}
-    # Proxy settings (optional, used when PROXY_ENABLED=true)
-    - HTTP_PROXY=${PROXY_ENABLED:+http://squid:3128}
-    - HTTPS_PROXY=${PROXY_ENABLED:+http://squid:3128}
-    - NO_PROXY=localhost,127.0.0.1,::1,ollama,whisper,qdrant,db,postgres,redis,kong
-
-x-ollama: &service-ollama
-  image: ollama/ollama:latest
-  container_name: ollama
-  restart: unless-stopped
-  expose:
-    - 11434/tcp
-  environment:
-    - OLLAMA_CONTEXT_LENGTH=8192
-    - OLLAMA_FLASH_ATTENTION=1
-    - OLLAMA_KV_CACHE_TYPE=q8_0
-    - OLLAMA_MAX_LOADED_MODELS=2    
-  volumes:
-    - ollama_storage:/root/.ollama
-
-x-init-ollama: &init-ollama
-  image: ollama/ollama:latest
-  container_name: ollama-pull-models
-  volumes:
-    - ollama_storage:/root/.ollama
-  entrypoint: /bin/sh
-  command:
-    - "-c"
-    - "sleep 3; OLLAMA_HOST=ollama:11434 ollama pull gemma3:1b; OLLAMA_HOST=ollama:11434 ollama pull nomic-embed-text"
-    # Gemma 3 1B - компактная модель от Google (~1GB)
-    # nomic-embed-text - модель для векторных эмбеддингов
+# ============================================================================
+# L.I.S.A. 2.0 — Docker Compose
+# Core: PostgreSQL (pgvector) + Redis
+# Optional: Proxy (--profile proxy), HTTPS (--profile https)
+# ============================================================================
 
 services:
-  n8n-import:
-    <<: *service-n8n
-    container_name: n8n-import
-    entrypoint: /bin/sh
-    command:
-      - "-c"
-      - |
-        # Import credentials (ignore errors for fresh installs)
-        n8n import:credentials --separate --input=/backup/credentials || true
-        # Import workflows (ignore webhook cleanup errors for fresh installs)
-        n8n import:workflow --separate --input=/backup/workflows || true
-        echo "Import completed"
-    volumes:
-      - ./n8n/backup:/backup  
 
-  n8n:
-    <<: *service-n8n
-    container_name: n8n
-    restart: unless-stopped
-    expose:
-      - 5678/tcp
-      - 5679/tcp  # Task Runner Broker port
-    volumes:
-      - n8n_storage:/home/node/.n8n
-      - ./n8n/backup:/backup
-      - ./shared:/data/shared
-    depends_on:
-      n8n-import:
-        condition: service_completed_successfully
-    deploy:
-      resources:
-        limits:
-          cpus: '${N8N_CPU_LIMIT:-2}'
-          memory: ${N8N_MEM_LIMIT:-4G}
-        reservations:
-          cpus: '${N8N_CPU_RESERVE:-1}'
-          memory: ${N8N_MEM_RESERVE:-2G}
-
-  # ============================================================
-  # N8N Task Runners (External Mode)
-  # Отдельный контейнер для выполнения Code нод (JavaScript + Python)
-  # Обеспечивает изоляцию, стабильность и безопасность
-  # ============================================================
-  n8n-runners:
-    image: n8nio/runners:latest
-    container_name: n8n-runners
-    restart: unless-stopped
-    environment:
-      # Подключение к брокеру n8n
-      - N8N_RUNNERS_TASK_BROKER_URI=http://n8n:5679
-      - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
-      # Настройки производительности (для 8GB RAM системы)
-      - N8N_RUNNERS_MAX_CONCURRENCY=${N8N_RUNNERS_MAX_CONCURRENCY:-5}
-      - N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT=60
-      # Логирование
-      - N8N_RUNNERS_LAUNCHER_LOG_LEVEL=info
-    depends_on:
-      - n8n
-    deploy:
-      resources:
-        limits:
-          cpus: '${N8N_RUNNERS_CPU_LIMIT:-1}'
-          memory: ${N8N_RUNNERS_MEM_LIMIT:-768M}
-        reservations:
-          cpus: '${N8N_RUNNERS_CPU_RESERVE:-0.25}'
-          memory: ${N8N_RUNNERS_MEM_RESERVE:-256M}
-    healthcheck:
-      test: ["CMD-SHELL", "node -e 'process.exit(0)' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  qdrant:
-    image: qdrant/qdrant
-    container_name: qdrant
-    restart: unless-stopped
-    expose:
-      - 6333/tcp
-      - 6334/tcp
-    volumes:
-      - qdrant_storage:/qdrant/storage
-    deploy:
-      resources:
-        limits:
-          cpus: '${QDRANT_CPU_LIMIT:-2}'
-          memory: ${QDRANT_MEM_LIMIT:-2G}
-        reservations:
-          cpus: '${QDRANT_CPU_RESERVE:-0.5}'
-          memory: ${QDRANT_MEM_RESERVE:-1G}
-
-  caddy:
-    container_name: caddy
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - 80:80/tcp
-      - 443:443/tcp
-    expose:
-      - 2019/tcp
-      - 443/tcp
-      - 443/udp
-      - 80/tcp
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy-addon:/etc/caddy/addons:ro      
-      - caddy-data:/data:rw
-      - caddy-config:/config:rw
-    environment:
-      - N8N_HOSTNAME=${N8N_HOSTNAME:-":8001"}
-      - FLOWISE_HOSTNAME=${FLOWISE_HOSTNAME:-":8003"}
-      - OLLAMA_HOSTNAME=${OLLAMA_HOSTNAME:-":8004"}
-      - SUPABASE_HOSTNAME=${SUPABASE_HOSTNAME:-":8005"}
-      - SEARXNG_HOSTNAME=${SEARXNG_HOSTNAME:-":8006"}
-      - LANGFUSE_HOSTNAME=${LANGFUSE_HOSTNAME:-":8007"}
-      - NEO4J_HOSTNAME=${NEO4J_HOSTNAME:-":8008"}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-internal}
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "1m"
-        max-file: "1"
-
+  # --- PostgreSQL with pgvector -------------------------------------------
   postgres:
-    image: postgres:${POSTGRES_VERSION:-17}
+    image: pgvector/pgvector:pg17
+    container_name: lisa_postgres
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
-      interval: 5s
-      timeout: 10s
-      retries: 20
-      start_period: 30s
-    expose:
-      - 5432/tcp
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-lisa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-lisa}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    deploy:
-      resources:
-        limits:
-          cpus: '${POSTGRES_CPU_LIMIT:-2}'
-          memory: ${POSTGRES_MEM_LIMIT:-4G}
-        reservations:
-          cpus: '${POSTGRES_CPU_RESERVE:-1}'
-          memory: ${POSTGRES_MEM_RESERVE:-2G}              
-
-  redis:
-    container_name: redis
-    image: docker.io/valkey/valkey:8-alpine
-    command: valkey-server --save 30 1 --loglevel warning
-    restart: unless-stopped
-    expose:
-      - 6379/tcp
-    volumes:
-      - valkey-data:/data
-    cap_drop:
-      - ALL
-    cap_add:
-      - SETGID
-      - SETUID
-      - DAC_OVERRIDE
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "1m"
-        max-file: "1"
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 3s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lisa}"]
+      interval: 5s
+      timeout: 5s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "${POSTGRES_CPU_LIMIT:-2}"
+          memory: "${POSTGRES_MEM_LIMIT:-2G}"
+    networks:
+      - lisa
 
-  # ============================================================
-  # Whisper Service (Speech-to-Text)
-  # ============================================================
-  whisper:
-    image: fedirz/faster-whisper-server:latest-cpu
-    container_name: whisper
+  # --- Redis --------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: lisa_redis
     restart: unless-stopped
-    expose:
-      - 8000/tcp
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      --save 30 1
+      --loglevel warning
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - whisper_models:/root/.cache/huggingface
-    environment:
-      - WHISPER__MODEL=base
-      - WHISPER__INFERENCE_DEVICE=cpu
-      - WHISPER__HOST=0.0.0.0
-      - WHISPER__PORT=8000
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  ollama-cpu:
-    profiles: ["cpu"]
-    <<: *service-ollama
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     deploy:
       resources:
         limits:
-          cpus: '${OLLAMA_CPU_LIMIT:-4}'
-          memory: ${OLLAMA_MEM_LIMIT:-8G}
-        reservations:
-          cpus: '${OLLAMA_CPU_RESERVE:-2}'
-          memory: ${OLLAMA_MEM_RESERVE:-4G}
+          cpus: "${REDIS_CPU_LIMIT:-1}"
+          memory: "${REDIS_MEM_LIMIT:-512M}"
+    networks:
+      - lisa
 
-  ollama-gpu:
-    profiles: ["gpu-nvidia"]
-    <<: *service-ollama
-    deploy:
-      resources:
-        limits:
-          cpus: '${OLLAMA_CPU_LIMIT:-4}'
-          memory: ${OLLAMA_MEM_LIMIT:-8G}
-        reservations:
-          cpus: '${OLLAMA_CPU_RESERVE:-2}'
-          memory: ${OLLAMA_MEM_RESERVE:-4G}
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  ollama-gpu-amd:
-    profiles: ["gpu-amd"]
-    <<: *service-ollama
-    image: ollama/ollama:rocm
-    devices:
-      - "/dev/kfd"
-      - "/dev/dri"
-    deploy:
-      resources:
-        limits:
-          cpus: '${OLLAMA_CPU_LIMIT:-4}'
-          memory: ${OLLAMA_MEM_LIMIT:-8G}
-        reservations:
-          cpus: '${OLLAMA_CPU_RESERVE:-2}'
-          memory: ${OLLAMA_MEM_RESERVE:-4G}
-
-  ollama-pull-llama-cpu:
-    profiles: ["cpu"]
-    <<: *init-ollama
-    depends_on:
-      - ollama-cpu
-
-  ollama-pull-llama-gpu:
-    profiles: ["gpu-nvidia"]
-    <<: *init-ollama
-    depends_on:
-      - ollama-gpu
-
-  ollama-pull-llama-gpu-amd:
-    profiles: [gpu-amd]
-    <<: *init-ollama
-    image: ollama/ollama:rocm
-    depends_on:
-     - ollama-gpu-amd
-
-  # ============================================================
-  # Squid Proxy Service
-  # Routes API requests (Anthropic, OpenAI, OpenRouter) via external proxy
-  # ============================================================
-  squid:
-    profiles: ["proxy"]
+  # --- Squid Proxy (optional) ---------------------------------------------
+  proxy:
     image: ubuntu/squid:latest
-    container_name: squid
+    container_name: lisa_proxy
     restart: unless-stopped
-    expose:
-      - 3128/tcp
+    profiles:
+      - proxy
+    ports:
+      - "3128:3128"
     volumes:
-      - ./squid/squid.conf:/etc/squid/squid.conf:ro
-    healthcheck:
-      test: ["CMD-SHELL", "squid -k check || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "1m"
-        max-file: "1"
+      - ./squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - lisa
+
+  # --- Caddy reverse proxy (optional) -------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: lisa_caddy
+    restart: unless-stopped
+    profiles:
+      - https
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - lisa
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
 
 networks:
-  default:
-    name: localai_default
+  lisa:
+    driver: bridge

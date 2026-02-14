@@ -1,0 +1,28 @@
+name: "Support Agent"
+description: "Поддержка клиентов с RAG по базе знаний"
+
+model:
+  provider: ${LLM_PROVIDER}
+  name: ${LLM_MODEL}
+  temperature: 0.2
+
+channels:
+  - type: telegram
+    bot_token: ${TELEGRAM_BOT_TOKEN}
+    mode: all_messages
+
+hitl:
+  enabled: true
+  confidence_threshold: 0.75
+  escalation_channel: telegram
+  escalation_chat_id: ${ADMIN_CHAT_ID}
+
+memory:
+  daily_logs: true
+  long_term: false
+  max_context_messages: 30
+
+rag:
+  enabled: true
+  collection: "support_kb"
+  similarity_threshold: 0.6

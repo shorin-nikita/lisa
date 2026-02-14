@@ -1,0 +1,33 @@
+name: n8n
+description: "Визуальная автоматизация (400+ коннекторов)"
+version: "1.0.0"
+
+requires:
+  - docker
+
+docker:
+  services:
+    n8n:
+      image: n8nio/n8n:latest
+      container_name: lisa_n8n
+      restart: unless-stopped
+      ports:
+        - "5678:5678"
+      environment:
+        N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+        DB_TYPE: postgresdb
+        DB_POSTGRESDB_HOST: lisa_postgres
+        DB_POSTGRESDB_PORT: 5432
+        DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-lisa}
+        DB_POSTGRESDB_USER: ${POSTGRES_USER:-lisa}
+        DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      volumes:
+        - n8n_storage:/home/node/.n8n
+      networks:
+        - lisa
+
+provides:
+  skills:
+    - n8n-webhook
+  commands:
+    - lisa n8n

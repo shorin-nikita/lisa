@@ -1,0 +1,27 @@
+name: caddy
+description: "Автоматический HTTPS с Let's Encrypt"
+version: "1.0.0"
+
+requires:
+  - docker
+  - domain
+
+docker:
+  services:
+    caddy:
+      image: caddy:2-alpine
+      container_name: lisa_caddy
+      restart: unless-stopped
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - ./Caddyfile:/etc/caddy/Caddyfile:ro
+        - caddy_data:/data
+        - caddy_config:/config
+      networks:
+        - lisa
+
+env:
+  DOMAIN: ""
+  LETSENCRYPT_EMAIL: ""

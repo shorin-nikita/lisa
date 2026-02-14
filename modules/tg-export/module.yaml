@@ -1,0 +1,22 @@
+name: tg-export
+description: "Экспорт и анализ данных из Telegram (MTProto API)"
+version: "1.0.0"
+
+requires:
+  - python3
+  - pip
+
+install: |
+  pip install telethon python-dotenv aiohttp rich
+
+env:
+  TELEGRAM_API_ID: ""
+  TELEGRAM_API_HASH: ""
+
+provides:
+  skills:
+    - tg-export
+    - tg-analyze
+    - tg-channel-stats
+  commands:
+    - lisa tg-export
