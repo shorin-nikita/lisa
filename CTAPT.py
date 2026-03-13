@@ -47,8 +47,19 @@ def run_command(cmd, check=True, capture_output=False, log_cmd=True):
             print(f"{Colors.FAIL}❌ Ошибка: {e}{Colors.ENDC}")
         return False
 
+def is_wsl():
+    """Detect if running inside WSL (Windows Subsystem for Linux)."""
+    try:
+        with open('/proc/version', 'r') as f:
+            return 'microsoft' in f.read().lower()
+    except (FileNotFoundError, PermissionError):
+        return False
+
 def check_system_requirements():
     print(f"\n{Colors.OKBLUE}🔍 Проверка системы...{Colors.ENDC}")
+    if is_wsl():
+        print(f"{Colors.WARNING}⚠️  Обнаружен WSL (Windows Subsystem for Linux){Colors.ENDC}")
+        print(f"{Colors.WARNING}   Таймауты инициализации будут увеличены автоматически{Colors.ENDC}")
     requirements = [
         ('docker', 'Docker не найден. Установите: sudo apt install docker.io'),
         ('python3', 'Python 3 не найден. Установите: sudo apt install python3'),
