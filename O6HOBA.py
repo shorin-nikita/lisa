@@ -536,51 +536,66 @@ def migrate_env_for_task_runners():
 
 def calculate_resource_limits(cpu_count, mem_gb):
     """
-    Расчёт оптимальных лимитов ресурсов для разных систем.
+    Тиерная система распределения ресурсов, оптимизированная для LLM.
 
-    Оптимизировано для RAG workflow с большими файлами:
-    - N8N нужно достаточно памяти для обработки файлов и эмбеддингов
-    - Ollama нужно для embedding модели + LLM
-    - PostgreSQL нужно для pgvector индексации
+    Стратегия: вспомогательные сервисы получают фиксированный максимум,
+    ВСЯ оставшаяся память идёт Ollama для запуска больших моделей.
 
-    Распределение памяти (% от доступной RAM):
-    - Ollama: 30% — embedding + LLM модели
-    - N8N: 22% — КРИТИЧНО для RAG (обработка файлов, очереди)
-    - PostgreSQL: 18% — pgvector требует RAM для HNSW индексов
-    - N8N Runners: 8% — Code ноды (JS + Python)
-    - Qdrant: 5% — векторное хранилище (резерв)
-    - System buffer: 17% — ОС, Docker overhead, Whisper
+    Docker overhead + ядро + процесс ollama serve занимают ~1.5GB,
+    поэтому реально доступная для моделей память = лимит - 1.5GB.
+
+    | RAM       | Ollama        | N8N  | PostgreSQL | Runners | Qdrant |
+    |-----------|---------------|------|------------|---------|--------|
+    | <= 8GB    | 2.5GB         | 1.5GB| 1.5GB      | 512MB   | 384MB  |
+    | 9-16GB    | RAM - сервисы | 2GB  | 2GB        | 768MB   | 512MB  |
+    | 17-32GB   | RAM - сервисы | 3GB  | 2.5GB      | 1GB     | 512MB  |
+    | > 32GB    | RAM - сервисы | 4GB  | 3GB        | 1.5GB   | 1GB    |
     """
+    OLLAMA_OVERHEAD_GB = 1.5  # Docker + kernel + ollama serve process
 
-    # === OLLAMA (30%) ===
-    # Минимум 2.5GB для nomic-embed-text + небольшой LLM
+    if mem_gb <= 8:
+        ollama_mem_gb = 2.5
+        n8n_mem_gb = 1.5
+        postgres_mem_gb = 1.5
+        runners_mem_mb = 512
+        qdrant_mem_mb = 384
+    elif mem_gb <= 16:
+        n8n_mem_gb = min(2.0, round(mem_gb * 0.15, 1))
+        postgres_mem_gb = min(2.0, round(mem_gb * 0.15, 1))
+        runners_mem_mb = 768
+        qdrant_mem_mb = 512
+        reserved = n8n_mem_gb + postgres_mem_gb + (runners_mem_mb + qdrant_mem_mb) / 1024 + 2.0
+        ollama_mem_gb = round(mem_gb - reserved, 1)
+    elif mem_gb <= 32:
+        n8n_mem_gb = 3.0
+        postgres_mem_gb = 2.5
+        runners_mem_mb = 1024
+        qdrant_mem_mb = 512
+        reserved = n8n_mem_gb + postgres_mem_gb + (runners_mem_mb + qdrant_mem_mb) / 1024 + 3.0
+        ollama_mem_gb = round(mem_gb - reserved, 1)
+    else:
+        n8n_mem_gb = 4.0
+        postgres_mem_gb = 3.0
+        runners_mem_mb = 1536
+        qdrant_mem_mb = 1024
+        reserved = n8n_mem_gb + postgres_mem_gb + (runners_mem_mb + qdrant_mem_mb) / 1024 + 4.0
+        ollama_mem_gb = round(mem_gb - reserved, 1)
+
+    # CPU — процентное распределение (работает на любом масштабе)
     ollama_cpu = max(2, min(int(cpu_count * 0.5), cpu_count - 1))
-    ollama_mem_gb = max(2.5, round(mem_gb * 0.30, 1))
-
-    # === N8N (22%) - УВЕЛИЧЕНО для RAG ===
-    # Минимум 1.5GB для обработки больших файлов
     n8n_cpu = max(1, min(int(cpu_count * 0.3), cpu_count - 1))
-    n8n_mem_gb = max(1.5, round(mem_gb * 0.22, 1))
-    # Node.js heap = 75% от лимита контейнера (в MB)
+    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
+    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
+    qdrant_cpu = max(0.5, min(int(cpu_count * 0.1), cpu_count - 1))
+
+    # Node.js heap = 75% от лимита контейнера
     n8n_heap_mb = int(n8n_mem_gb * 1024 * 0.75)
 
-    # === POSTGRESQL (18%) ===
-    # Минимум 1.5GB для pgvector с HNSW индексами
-    postgres_cpu = max(1, min(int(cpu_count * 0.25), cpu_count - 1))
-    postgres_mem_gb = max(1.5, round(mem_gb * 0.18, 1))
-
-    # === N8N RUNNERS (8%) ===
-    # Минимум 512MB для Code нод
-    runners_cpu = max(0.5, min(int(cpu_count * 0.15), cpu_count - 1))
-    runners_mem_mb = max(512, int(mem_gb * 0.08 * 1024))
-
-    # === QDRANT (5%) ===
-    # Минимум 384MB
-    qdrant_cpu = max(0.5, min(int(cpu_count * 0.1), cpu_count - 1))
-    qdrant_mem_mb = max(384, int(mem_gb * 0.05 * 1024))
+    # Доступная память для моделей (после overhead)
+    ollama_available_gb = round(max(0, ollama_mem_gb - OLLAMA_OVERHEAD_GB), 1)
 
     return {
-        'ollama': {'cpu': ollama_cpu, 'mem_gb': ollama_mem_gb},
+        'ollama': {'cpu': ollama_cpu, 'mem_gb': ollama_mem_gb, 'available_gb': ollama_available_gb},
         'n8n': {'cpu': n8n_cpu, 'mem_gb': n8n_mem_gb, 'heap_mb': n8n_heap_mb},
         'postgres': {'cpu': postgres_cpu, 'mem_gb': postgres_mem_gb},
         'runners': {'cpu': runners_cpu, 'mem_mb': runners_mem_mb},
@@ -596,6 +611,8 @@ def update_env_with_resources(cpu_count, mem_gb):
     1. Применить новые оптимизации из обновлений
     2. Исправить проблемы совместимости (NODE_OPTIONS vs MEM_LIMIT)
     3. Адаптироваться к изменениям в системе
+
+    Если RESOURCE_LIMITS_MANUAL=true — пропускаем пересчёт.
     """
     print(f"\n{Colors.OKBLUE}⚙️  Настройка лимитов ресурсов...{Colors.ENDC}")
 
@@ -603,12 +620,18 @@ def update_env_with_resources(cpu_count, mem_gb):
         print(f"{Colors.WARNING}⚠️  Файл .env не найден, пропускаем{Colors.ENDC}")
         return
 
-    # Рассчитываем оптимальные лимиты
-    limits = calculate_resource_limits(cpu_count, mem_gb)
-
     # Читаем текущий .env
     with open('.env', 'r') as f:
         content = f.read()
+
+    # Проверяем флаг ручного управления
+    if 'RESOURCE_LIMITS_MANUAL=true' in content:
+        print(f"{Colors.OKGREEN}✅ RESOURCE_LIMITS_MANUAL=true — лимиты не пересчитываются{Colors.ENDC}")
+        print(f"{Colors.OKCYAN}   Удалите RESOURCE_LIMITS_MANUAL=true из .env для автоматической настройки{Colors.ENDC}")
+        return
+
+    # Рассчитываем оптимальные лимиты
+    limits = calculate_resource_limits(cpu_count, mem_gb)
 
     # Удаляем старую секцию Resource Limits (если есть)
     lines = content.split('\n')
@@ -622,11 +645,11 @@ def update_env_with_resources(cpu_count, mem_gb):
             continue
         # Конец секции - пустая строка или новая секция
         if skip_section:
-            if line.strip() == '' or (line.startswith('#') and 'Limit' not in line and 'RAM' not in line and 'Runners' not in line):
+            if line.strip() == '' or (line.startswith('#') and 'Limit' not in line and 'RAM' not in line and 'Runners' not in line and 'модел' not in line and 'RESOURCE' not in line):
                 skip_section = False
                 if line.strip() != '':
                     new_lines.append(line)
-            elif line.startswith(('OLLAMA_', 'POSTGRES_', 'N8N_', 'QDRANT_')) and ('LIMIT' in line or 'RESERVE' in line or 'HEAP' in line):
+            elif line.startswith(('OLLAMA_', 'POSTGRES_', 'N8N_', 'QDRANT_', 'RESOURCE_LIMITS_')) and ('LIMIT' in line or 'RESERVE' in line or 'HEAP' in line or 'MANUAL' in line):
                 continue  # Пропускаем старые лимиты
             continue
         new_lines.append(line)
@@ -646,11 +669,13 @@ def update_env_with_resources(cpu_count, mem_gb):
 
 ############
 # Resource Limits (автоматически настроено {datetime.now().strftime('%Y-%m-%d %H:%M')})
-# Оптимизировано для {mem_gb}GB RAM — НЕ РЕДАКТИРУЙТЕ ВРУЧНУЮ
+# Оптимизировано для {mem_gb}GB RAM
+# Для ручного управления лимитами добавьте: RESOURCE_LIMITS_MANUAL=true
 # При обновлении через O6HOBA.py лимиты пересчитываются автоматически
 ############
 
 # Ollama — LLM и embedding модели
+# Доступно для моделей: ~{o['available_gb']}GB (после overhead Docker/ядра/процесса)
 OLLAMA_CPU_LIMIT={o['cpu']}
 OLLAMA_MEM_LIMIT={o['mem_gb']}G
 OLLAMA_CPU_RESERVE={max(1, o['cpu'] // 2)}
@@ -689,7 +714,7 @@ QDRANT_MEM_RESERVE={q['mem_mb'] // 2}M
         f.write('\n'.join(new_lines))
 
     print(f"{Colors.OKGREEN}✅ Лимиты ресурсов оптимизированы для {mem_gb}GB RAM:{Colors.ENDC}")
-    print(f"   Ollama:     {o['cpu']} CPU, {o['mem_gb']}G RAM")
+    print(f"   Ollama:     {o['cpu']} CPU, {o['mem_gb']}G RAM (для моделей: ~{o['available_gb']}GB)")
     print(f"   N8N:        {n['cpu']} CPU, {n['mem_gb']}G RAM (heap: {n['heap_mb']}MB)")
     print(f"   PostgreSQL: {p['cpu']} CPU, {p['mem_gb']}G RAM")
     print(f"   Runners:    {r['cpu']} CPU, {r['mem_mb']}M RAM")
